@@ -32,7 +32,7 @@ Agents do not use this API — they use the [coordination tools](tools.md). This
 | Method | Path | Body | Returns |
 | --- | --- | --- | --- |
 | `GET` | `/api/messages` | `?limit=100` | Recent traffic, newest first |
-| `POST` | `/api/messages` | `{ from?, to?, channel?, subject, body?, priority? }` | The message. `from` defaults to `workspace` |
+| `POST` | `/api/messages` | `{ from?, to?, channel?, subject, body?, priority? }` | The message. `from` defaults to `workspace`, and must name a real member or the workspace itself |
 | `GET` | `/api/threads/:threadId` | | One conversation, oldest first |
 
 ## Board
