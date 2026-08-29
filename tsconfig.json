@@ -1,9 +1,20 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/core" },
-    { "path": "packages/daemon" },
-    { "path": "packages/mcp" },
-    { "path": "packages/cli" }
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/daemon"
+    },
+    {
+      "path": "packages/mcp"
+    },
+    {
+      "path": "packages/tui"
+    },
+    {
+      "path": "packages/cli"
+    }
   ]
 }

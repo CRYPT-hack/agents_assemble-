@@ -1,0 +1,26 @@
+{
+  "name": "@assemble/tui",
+  "version": "0.1.0",
+  "description": "The Agents Assemble workspace, rendered in your own terminal.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@assemble/core": "0.1.0",
+    "@assemble/daemon": "0.1.0",
+    "@xterm/headless": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

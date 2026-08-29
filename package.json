@@ -12,6 +12,7 @@
     "packages/core",
     "packages/daemon",
     "packages/mcp",
+    "packages/tui",
     "packages/cli",
     "packages/ui"
   ],
