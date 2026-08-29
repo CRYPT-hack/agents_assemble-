@@ -1,0 +1,31 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# runtime state
+.assemble/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# env
+.env
+.env.*
+!.env.example
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,28 @@
+{
+  "name": "agents-assemble",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One workspace where every coding agent works the same project, side by side, and talks to the others.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/daemon",
+    "packages/mcp",
+    "packages/cli",
+    "packages/ui"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc --build",
+    "test": "node --test --experimental-test-module-mocks \"packages/*/test/**/*.test.ts\"",
+    "clean": "node scripts/clean.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.7.2"
+  }
+}
