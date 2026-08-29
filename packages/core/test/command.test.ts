@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { parseCommand } from '../src/command.ts';
+import { parseCommand } from '../dist/command.js';
 
 describe('command grammar', () => {
   it('sends bare text to the focused terminal', () => {

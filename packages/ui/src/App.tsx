@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { JSX } from 'react';
 
 import { api } from './api';
-import type { Command } from './command';
+import type { Command } from '@assemble/core/command';
 import { Canvas } from './components/Canvas';
 import { CommandBar } from './components/CommandBar';
 import { Drawer } from './components/Drawer';

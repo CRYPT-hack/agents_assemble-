@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { JSX, KeyboardEvent as ReactKeyboardEvent } from 'react';
 
-import { COMMAND_HELP, parseCommand, type Command } from '../command';
+import { COMMAND_HELP, parseCommand, type Command } from '@assemble/core/command';
 
 interface Props {
   focused?: string;
