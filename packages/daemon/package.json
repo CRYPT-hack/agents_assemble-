@@ -1,0 +1,30 @@
+{
+  "name": "@assemble/daemon",
+  "version": "0.1.0",
+  "description": "Long-running Agents Assemble process: pty supervision, REST and WebSocket API.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean"
+  },
+  "dependencies": {
+    "@assemble/core": "0.1.0",
+    "ws": "^8.18.0"
+  },
+  "optionalDependencies": {
+    "@homebridge/node-pty-prebuilt-multiarch": "^0.14.1"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
