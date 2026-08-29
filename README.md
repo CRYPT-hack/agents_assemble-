@@ -134,7 +134,12 @@ Agents that speak MCP join the bus and get the tools above. Agents that do not s
    └──────────────┴───────────────┴───────────────┴──────────────┘
 ```
 
-State lives in one SQLite file under `.assemble/`, so a crashed daemon rehydrates the whole crew — members, mail, claims, board — on restart. See [docs/architecture.md](docs/architecture.md).
+State lives in one SQLite file under `.assemble/`, so a crashed daemon rehydrates the whole crew — members, mail, claims, board — on restart.
+
+- [Architecture](docs/architecture.md) — how the layers fit together, and why the workspace is a file
+- [Coordination tools](docs/tools.md) — the agent-facing contract, argument by argument
+- [Agents](docs/agents.md) — the catalog, overriding it, and adding a CLI it does not know
+- [HTTP API](docs/http-api.md) — the operator-facing surface, for scripting
 
 ## Packages
 
