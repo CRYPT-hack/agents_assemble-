@@ -147,43 +147,86 @@ export function drawWire(
   const goingLeft = boxCentre.x < busCentre.x;
   const goingUp = boxCentre.y < busCentre.y;
 
-  // Where the wire leaves the bus and where it arrives at the pane.
-  const startX = goingLeft ? bus.x - 1 : bus.x + bus.width;
-  const endX = goingLeft ? box.x + box.width : box.x - 1;
-
-  // The turn happens halfway along, but never outside the run itself — a pane
-  // tucked against the bus leaves almost no room, and an elbow placed beyond
-  // either end would be a corner the wire never reaches.
-  const elbowX = clamp(Math.round((startX + endX) / 2), Math.min(startX, endX), Math.max(startX, endX));
-
+  // Leave by the face that points at the pane. A bus sitting in a vertical
+  // gutter is reached sideways; one in a horizontal gutter is reached from
+  // above or below, which is the single-column case.
+  const sideways = Math.abs(boxCentre.x - busCentre.x) >= Math.abs(boxCentre.y - busCentre.y);
   const path: Array<{ x: number; y: number; char: string }> = [];
 
-  for (const x of between(startX, elbowX, false)) {
-    path.push({ x, y: busCentre.y, char: LINE.h });
-  }
+  let arrow: { x: number; y: number; char: string };
 
-  if (boxCentre.y === busCentre.y) {
-    path.push({ x: elbowX, y: busCentre.y, char: LINE.h });
-  } else {
-    path.push({
-      x: elbowX,
-      y: busCentre.y,
-      char: goingLeft ? (goingUp ? LINE.br : LINE.tr) : goingUp ? LINE.bl : LINE.tl,
-    });
+  if (sideways) {
+    const startX = goingLeft ? bus.x - 1 : bus.x + bus.width;
+    const endX = goingLeft ? box.x + box.width : box.x - 1;
 
-    for (const y of between(busCentre.y, boxCentre.y, false)) {
-      path.push({ x: elbowX, y, char: LINE.v });
+    // The turn happens halfway along, but never outside the run itself — a pane
+    // tucked against the bus leaves almost no room, and an elbow placed beyond
+    // either end would be a corner the wire never reaches.
+    const elbowX = clamp(Math.round((startX + endX) / 2), Math.min(startX, endX), Math.max(startX, endX));
+
+    for (const x of between(startX, elbowX, false)) {
+      path.push({ x, y: busCentre.y, char: LINE.h });
     }
 
-    path.push({
-      x: elbowX,
-      y: boxCentre.y,
-      char: goingLeft ? (goingUp ? LINE.tl : LINE.bl) : goingUp ? LINE.tr : LINE.br,
-    });
-  }
+    if (boxCentre.y === busCentre.y) {
+      path.push({ x: elbowX, y: busCentre.y, char: LINE.h });
+    } else {
+      path.push({
+        x: elbowX,
+        y: busCentre.y,
+        char: goingLeft ? (goingUp ? LINE.br : LINE.tr) : goingUp ? LINE.bl : LINE.tl,
+      });
 
-  for (const x of between(elbowX, endX, true)) {
-    path.push({ x, y: boxCentre.y, char: LINE.h });
+      for (const y of between(busCentre.y, boxCentre.y, false)) {
+        path.push({ x: elbowX, y, char: LINE.v });
+      }
+
+      path.push({
+        x: elbowX,
+        y: boxCentre.y,
+        char: goingLeft ? (goingUp ? LINE.tl : LINE.bl) : goingUp ? LINE.tr : LINE.br,
+      });
+    }
+
+    for (const x of between(elbowX, endX, true)) {
+      path.push({ x, y: boxCentre.y, char: LINE.h });
+    }
+
+    arrow = { x: endX, y: boxCentre.y, char: goingLeft ? ARROW.left : ARROW.right };
+  } else {
+    const startY = goingUp ? bus.y - 1 : bus.y + bus.height;
+    const endY = goingUp ? box.y + box.height : box.y - 1;
+    const elbowY = clamp(Math.round((startY + endY) / 2), Math.min(startY, endY), Math.max(startY, endY));
+
+    for (const y of between(startY, elbowY, false)) {
+      path.push({ x: busCentre.x, y, char: LINE.v });
+    }
+
+    if (boxCentre.x === busCentre.x) {
+      path.push({ x: busCentre.x, y: elbowY, char: LINE.v });
+    } else {
+      path.push({
+        x: busCentre.x,
+        y: elbowY,
+        char: goingUp ? (goingLeft ? LINE.br : LINE.bl) : goingLeft ? LINE.tr : LINE.tl,
+      });
+
+      for (const x of between(busCentre.x, boxCentre.x, false)) {
+        path.push({ x, y: elbowY, char: LINE.h });
+      }
+
+      path.push({
+        x: boxCentre.x,
+        y: elbowY,
+        char: goingUp ? (goingLeft ? LINE.tl : LINE.tr) : goingLeft ? LINE.bl : LINE.br,
+      });
+    }
+
+    for (const y of between(elbowY, endY, true)) {
+      path.push({ x: boxCentre.x, y, char: LINE.v });
+    }
+
+    arrow = { x: boxCentre.x, y: endY, char: goingUp ? ARROW.up : ARROW.down };
   }
 
   for (const point of path) {
@@ -193,7 +236,7 @@ export function drawWire(
   }
 
   // Arrowhead where the wire meets the pane.
-  grid.set(endX, boxCentre.y, goingLeft ? ARROW.left : ARROW.right, style);
+  grid.set(arrow.x, arrow.y, arrow.char, style);
 
   if (phase !== undefined && path.length > 2) {
     const at = path[Math.floor(phase * (path.length - 1))];

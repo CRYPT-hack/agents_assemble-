@@ -366,12 +366,13 @@ export class Tui {
     const { cols, rows } = this.screen.size();
     const grid = new Grid(cols, rows);
 
-    const headerRows = 2;
+    const traffic = this.recentTraffic();
+    const headerRows = traffic.length > 0 ? 3 : 2;
     const footerRows = this.showHelp ? 3 + COMMAND_HELP.length : 3;
     const bodyTop = headerRows;
     const bodyHeight = Math.max(4, rows - headerRows - footerRows);
 
-    this.drawHeader(grid, cols);
+    this.drawHeader(grid, cols, traffic);
 
     const layout = planLayout(cols - 2, bodyHeight, this.members.map((member) => member.handle));
     const boxes = layout.boxes.map((box) => ({ ...box, x: box.x + 1, y: box.y + bodyTop }));
@@ -388,7 +389,50 @@ export class Tui {
     return grid.toLines();
   }
 
-  private drawHeader(grid: Grid, cols: number): void {
+  /**
+   * Who has spoken to whom lately, as one line.
+   *
+   * The wires say this too, but only when the terminal is wide enough to hold a
+   * bus. This line always fits, so the answer to "are they actually talking to
+   * each other" is never more than a glance away.
+   */
+  private recentTraffic(): Array<{ from: string; to: string; subject: string; clash: boolean }> {
+    const now = Date.now();
+    const seen = new Set<string>();
+    const out: Array<{ from: string; to: string; subject: string; clash: boolean }> = [];
+
+    for (const lease of this.leases) {
+      for (const other of this.leases) {
+        if (lease.holder >= other.holder || !overlaps(lease, other)) continue;
+
+        const key = `clash:${lease.holder}:${other.holder}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ from: lease.holder, to: other.holder, subject: 'same files', clash: true });
+      }
+    }
+
+    for (const message of this.messages) {
+      if (now - Date.parse(message.createdAt) > RECENT_MS) continue;
+
+      const from = message.from;
+      const to = message.kind === 'direct' ? message.to.join(', ') : 'everyone';
+      const key = `${from}:${to}`;
+      if (seen.has(key)) continue;
+
+      seen.add(key);
+      out.push({ from, to, subject: message.subject, clash: false });
+      if (out.length >= 4) break;
+    }
+
+    return out;
+  }
+
+  private drawHeader(
+    grid: Grid,
+    cols: number,
+    traffic: Array<{ from: string; to: string; subject: string; clash: boolean }>,
+  ): void {
     const { workspace, runtime } = this.daemon;
     const running = this.members.filter((member) => runtime.isRunning(member.handle)).length;
     const openTasks = workspace.board.list({ status: ['backlog', 'claimed', 'in_progress', 'review'] }).length;
@@ -396,7 +440,6 @@ export class Tui {
     grid.text(1, 0, '●', PALETTE.coral);
     grid.text(3, 0, '●', PALETTE.amber);
     grid.text(5, 0, '●', PALETTE.phos);
-    grid.text(8, 0, workspace.config.name, PALETTE.text);
 
     const stats = [
       `${this.members.length} crew`,
@@ -405,10 +448,38 @@ export class Tui {
       `${openTasks} open`,
     ].join('   ');
 
-    grid.text(Math.max(0, cols - stats.length - 12), 0, stats, PALETTE.dim);
+    // The name yields to the numbers: a truncated workspace name is readable,
+    // a workspace name run into the counts is not.
+    const statsAt = Math.max(0, cols - stats.length - 12);
+    grid.text(8, 0, truncate(workspace.config.name, Math.max(4, statsAt - 10)), PALETTE.text);
+    grid.text(statsAt, 0, stats, PALETTE.dim);
     grid.text(cols - 10, 0, this.mode === 'attach' ? 'ATTACHED' : 'COMMAND', this.mode === 'attach' ? PALETTE.phos : PALETTE.faint);
 
-    grid.text(0, 1, '─'.repeat(cols), PALETTE.rule);
+    if (traffic.length === 0) {
+      grid.text(0, 1, '─'.repeat(cols), PALETTE.rule);
+      return;
+    }
+
+    let x = 2;
+    for (const link of traffic) {
+      const arrow = link.clash ? ' ↔ ' : ' ─▶ ';
+      const tone = link.clash ? PALETTE.coral : PALETTE.phos;
+      const piece = `${link.from}${arrow}${link.to}`;
+
+      if (x + piece.length + 4 > cols) break;
+
+      grid.text(x, 1, piece, tone);
+      x += piece.length + 1;
+
+      const room = Math.min(30, cols - x - 4);
+      if (room > 8) {
+        const subject = truncate(link.subject, room);
+        grid.text(x, 1, subject, PALETTE.faint);
+        x += subject.length + 3;
+      }
+    }
+
+    grid.text(0, 2, '─'.repeat(cols), PALETTE.rule);
   }
 
   private drawEmpty(grid: Grid, cols: number, top: number, height: number): void {

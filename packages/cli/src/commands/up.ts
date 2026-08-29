@@ -6,7 +6,7 @@ import { runTui } from '@assemble/tui';
 
 import { flagBool, flagNumber, flagString, type Parsed } from '../args.js';
 import { DEFAULT_PORT } from '../client.js';
-import { bold, dim, green, print, warn } from '../output.js';
+import { bold, dim, exitNow, green, print, warn } from '../output.js';
 
 /**
  * Where `assemble-mcp` lives for this installation.
@@ -60,8 +60,8 @@ export async function upCommand(parsed: Parsed): Promise<number> {
       await daemon.close();
     }
 
-    print(`${dim('workspace closed.')} ${dim(`branches are where the agents left them`)}`);
-    return 0;
+    print(`${dim('workspace closed.')} ${dim('branches are where the agents left them')}`);
+    return exitNow(0);
   }
 
   const members = daemon.workspace.crew.list();
@@ -82,5 +82,5 @@ export async function upCommand(parsed: Parsed): Promise<number> {
     process.on('SIGTERM', shutdown);
   });
 
-  return 0;
+  return exitNow(0);
 }

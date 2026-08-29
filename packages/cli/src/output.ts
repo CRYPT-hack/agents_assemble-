@@ -84,3 +84,20 @@ export function shortTime(iso: string): string {
     ? date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
     : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+
+/**
+ * Flush stdout, then end the process.
+ *
+ * The pty layer leaves native handles open that nothing exposes a way to close,
+ * so a command that has run agents would otherwise sit there with its work done
+ * and the event loop still spinning. Commands that own the terminal end it
+ * themselves rather than waiting for a loop that will never drain.
+ */
+export async function exitNow(code = 0): Promise<never> {
+  await new Promise<void>((resolve) => {
+    if (process.stdout.write('')) resolve();
+    else process.stdout.once('drain', () => resolve());
+  });
+
+  process.exit(code);
+}
