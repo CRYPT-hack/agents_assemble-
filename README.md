@@ -21,17 +21,22 @@ Running several coding agents on one repository today means several terminals, s
 ## Quick start
 
 ```bash
-npm install
-npm run build
+npm install && npm run build
+```
+
+Put `assemble` on your PATH:
+
+```bash
+npm link --workspace @assemble/cli
 ```
 
 From inside the repository you want the crew to work on:
 
 ```bash
-node /path/to/agents-assemble/packages/cli/dist/bin.js init
+assemble init
 ```
 
-Start the workspace, which owns the agents and serves the console at `http://127.0.0.1:4319`:
+Start the workspace. It owns the agents and serves the console at `http://127.0.0.1:4319`:
 
 ```bash
 assemble up
