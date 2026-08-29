@@ -1,4 +1,4 @@
-import { PALETTE, centre, pad, truncate } from './ansi.js';
+import { PALETTE, centre, pad, truncate, visibleWidth } from './ansi.js';
 import type { Grid } from './grid.js';
 import { centreOf, type Box } from './layout.js';
 
@@ -60,13 +60,17 @@ export function drawWindow(
     : [PALETTE.faint, PALETTE.faint, PALETTE.faint];
   lights.forEach((colour, index) => grid.set(x + 2 + index * 2, y, '●', colour));
 
-  const titleRoom = width - 12 - options.right.length;
+  // `right` arrives already coloured, so it goes through raw(): text() would
+  // write the escape bytes as visible cells and push the corner off the box.
+  const rightWidth = visibleWidth(options.right);
+  const titleRoom = width - 12 - rightWidth;
+
   if (titleRoom > 6) {
     const title = truncate(options.title, titleRoom);
     grid.text(x + 8, y, ` ${title} `, options.style.title);
   }
-  if (options.right) {
-    grid.text(x + width - options.right.length - 2, y, options.right, PALETTE.dim);
+  if (rightWidth > 0) {
+    grid.raw(x + width - rightWidth - 2, y, options.right);
   }
 
   // Body: the agent's own screen, already fitted to the inner box.
@@ -143,29 +147,31 @@ export function drawWire(
   const goingLeft = boxCentre.x < busCentre.x;
   const goingUp = boxCentre.y < busCentre.y;
 
+  // Where the wire leaves the bus and where it arrives at the pane.
   const startX = goingLeft ? bus.x - 1 : bus.x + bus.width;
   const endX = goingLeft ? box.x + box.width : box.x - 1;
-  const elbowX = goingLeft ? endX + Math.max(2, Math.floor((startX - endX) / 2)) : endX - Math.max(2, Math.floor((endX - startX) / 2));
+
+  // The turn happens halfway along, but never outside the run itself — a pane
+  // tucked against the bus leaves almost no room, and an elbow placed beyond
+  // either end would be a corner the wire never reaches.
+  const elbowX = clamp(Math.round((startX + endX) / 2), Math.min(startX, endX), Math.max(startX, endX));
 
   const path: Array<{ x: number; y: number; char: string }> = [];
 
-  // Out of the bus, along its own row.
-  const step = goingLeft ? -1 : 1;
-  for (let x = startX; x !== elbowX; x += step) {
+  for (const x of between(startX, elbowX, false)) {
     path.push({ x, y: busCentre.y, char: LINE.h });
   }
 
-  // The elbow, turning toward the pane's row.
-  const sameRow = boxCentre.y === busCentre.y;
-  if (!sameRow) {
+  if (boxCentre.y === busCentre.y) {
+    path.push({ x: elbowX, y: busCentre.y, char: LINE.h });
+  } else {
     path.push({
       x: elbowX,
       y: busCentre.y,
       char: goingLeft ? (goingUp ? LINE.br : LINE.tr) : goingUp ? LINE.bl : LINE.tl,
     });
 
-    const vertical = goingUp ? -1 : 1;
-    for (let y = busCentre.y + vertical; y !== boxCentre.y; y += vertical) {
+    for (const y of between(busCentre.y, boxCentre.y, false)) {
       path.push({ x: elbowX, y, char: LINE.v });
     }
 
@@ -174,12 +180,9 @@ export function drawWire(
       y: boxCentre.y,
       char: goingLeft ? (goingUp ? LINE.tl : LINE.bl) : goingUp ? LINE.tr : LINE.br,
     });
-  } else {
-    path.push({ x: elbowX, y: busCentre.y, char: LINE.h });
   }
 
-  // Into the pane.
-  for (let x = elbowX + step; x !== endX + step; x += step) {
+  for (const x of between(elbowX, endX, true)) {
     path.push({ x, y: boxCentre.y, char: LINE.h });
   }
 
@@ -202,8 +205,29 @@ function isWire(char: string): boolean {
   return char === LINE.h || char === LINE.v || char === LINE.cross;
 }
 
+const clamp = (value: number, low: number, high: number): number =>
+  Math.min(Math.max(value, low), high);
+
+/**
+ * The cells strictly between `from` and `to`, in travel order.
+ *
+ * Direction is derived rather than assumed, so a segment of length zero yields
+ * nothing instead of running away — which is exactly what a pane sitting flush
+ * against the bus produces. `includeEnd` adds the far cell, for the last leg
+ * that has to reach the pane.
+ */
+function between(from: number, to: number, includeEnd: boolean): number[] {
+  const step = to >= from ? 1 : -1;
+  const cells: number[] = [];
+
+  for (let at = from; at !== to; at += step) cells.push(at);
+  if (includeEnd) cells.push(to);
+
+  return cells;
+}
+
 /** A short label parked on a wire, e.g. the subject of the last message. */
 export function drawWireLabel(grid: Grid, x: number, y: number, text: string, tone: WireTone): void {
-  const label = truncate(text, 22);
+  const label = truncate(text, 44);
   grid.text(x, y, ` ${label} `, TONE[tone]);
 }

@@ -1,6 +1,11 @@
-import { Terminal } from '@xterm/headless';
+import { createRequire } from 'node:module';
+import type { Terminal as HeadlessTerminal } from '@xterm/headless';
 
 import { fg, pad, reset } from './ansi.js';
+
+// The headless build ships as UMD, which Node cannot read named exports from.
+// Requiring it keeps the import working without a bundler in the way.
+const { Terminal } = createRequire(import.meta.url)('@xterm/headless') as typeof import('@xterm/headless');
 
 /**
  * One agent's screen, emulated.
@@ -12,7 +17,7 @@ import { fg, pad, reset } from './ansi.js';
  * gives back a grid we can copy into our own layout.
  */
 export class Pane {
-  private readonly term: Terminal;
+  private readonly term: HeadlessTerminal;
   private dirty = true;
 
   constructor(

@@ -352,6 +352,17 @@ export class Tui {
   // -- rendering -----------------------------------------------------------
 
   private render(): void {
+    this.screen.render(this.frame());
+  }
+
+  /**
+   * Compose one frame and return it, without painting.
+   *
+   * Rendering is kept separate from the screen so a frame can be asserted on in
+   * a test — a console nobody can test is a console that quietly rots.
+   */
+  frame(): string[] {
+    if (this.members.length === 0) this.refresh();
     const { cols, rows } = this.screen.size();
     const grid = new Grid(cols, rows);
 
@@ -374,7 +385,7 @@ export class Tui {
     }
 
     this.drawFooter(grid, cols, rows, footerRows);
-    this.screen.render(grid.toLines());
+    return grid.toLines();
   }
 
   private drawHeader(grid: Grid, cols: number): void {
@@ -498,7 +509,16 @@ export class Tui {
     );
 
     if (label) {
-      drawWireLabel(grid, bus.x - 12, bus.y - 1, label.text, label.tone);
+      // The row under the bus is gutter all the way across, so a label there
+      // never lands on a pane no matter how long it runs.
+      const text = label.text.length > 40 ? `${label.text.slice(0, 39)}…` : label.text;
+      drawWireLabel(
+        grid,
+        Math.max(0, bus.x + Math.floor(bus.width / 2) - Math.floor(text.length / 2)),
+        bus.y + bus.height,
+        text,
+        label.tone,
+      );
     }
   }
 

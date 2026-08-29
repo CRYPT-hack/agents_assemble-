@@ -14,7 +14,8 @@ export interface SendOptions {
   /** Channel name. Mutually exclusive with `to`. */
   channel?: string;
   subject: string;
-  body: string;
+  /** Optional: a subject alone is a perfectly good message. */
+  body?: string;
   priority?: MessagePriority;
   /** Message being answered. Its thread is inherited. */
   replyTo?: string;
@@ -58,7 +59,7 @@ export class Bus {
       from: options.from,
       to,
       subject,
-      body: options.body,
+      body: options.body ?? '',
       priority: options.priority ?? 'normal',
       threadId: parent?.threadId ?? id,
       createdAt: nowIso(),

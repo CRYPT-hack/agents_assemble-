@@ -55,10 +55,19 @@ export function visibleWidth(text: string): number {
   return text.replace(ANSI_PATTERN, '').length;
 }
 
-/** Cut a string to `width` visible columns, keeping escape sequences intact. */
+/**
+ * Cut a string to `width` visible columns, keeping escape sequences intact.
+ *
+ * Plain text comes back plain: the grid writes character by character, so a
+ * stray reset appended to an unstyled label would eat cells and push whatever
+ * follows — a box border, usually — off the end.
+ */
 export function truncate(text: string, width: number, ellipsis = '…'): string {
   if (visibleWidth(text) <= width) return text;
   if (width <= 1) return ellipsis.slice(0, Math.max(0, width));
+
+  const styled = text.includes(ESC);
+  if (!styled) return text.slice(0, Math.max(0, width - 1)) + ellipsis;
 
   let out = '';
   let shown = 0;

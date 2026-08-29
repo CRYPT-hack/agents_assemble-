@@ -18,12 +18,16 @@ export interface Layout {
 const MIN_PANE_WIDTH = 30;
 const MIN_PANE_HEIGHT = 7;
 
-/** Wide enough for a wire and a small label to pass between two panes. */
-const GUTTER_X = 9;
-const GUTTER_Y = 3;
-
-const BUS_WIDTH = 13;
+/**
+ * The gutters are not spacing — they are where the wiring lives. The vertical
+ * one has to hold the bus with room for a wire either side of it; the
+ * horizontal one holds the bus plus a row for a label.
+ */
+const BUS_WIDTH = 11;
 const BUS_HEIGHT = 3;
+
+const GUTTER_X = BUS_WIDTH + 6;
+const GUTTER_Y = BUS_HEIGHT + 2;
 
 /**
  * Arrange panes in the space between the header and the command line.
