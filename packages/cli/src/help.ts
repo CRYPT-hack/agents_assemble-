@@ -2,7 +2,7 @@ import { bold, dim, print } from './output.js';
 
 const COMMANDS: Array<[string, string]> = [
   ['init', 'Prepare this repository for a crew'],
-  ['up', 'Run the workspace: agents, bus and console'],
+  ['up', 'Take over this terminal and run the workspace'],
   ['add <agent>', 'Enlist an agent and start it'],
   ['ls', 'Who is in the crew and what they are doing'],
   ['agents', 'Which agents this build knows how to run'],
@@ -17,9 +17,21 @@ const COMMANDS: Array<[string, string]> = [
   ['doctor', 'What is installed, and what is missing'],
 ];
 
+/** What the keyboard does once `assemble up` owns the terminal. */
+const INSIDE: Array<[string, string]> = [
+  ['<text>', 'goes to the focused pane'],
+  ['@handle <text>', 'messages that agent'],
+  ['/add <agent> <job>', 'enlists another agent, running'],
+  ['/task <title>', 'files work on the shared board'],
+  ['ctrl-a', 'attach your keyboard straight to the focused pane'],
+  ['ctrl-]', 'detach again'],
+  ['ctrl-n / ctrl-p', 'next / previous pane'],
+  ['/quit', 'stop the crew and give the terminal back'],
+];
+
 const EXAMPLES: Array<[string, string]> = [
   ['assemble init', 'set the repository up'],
-  ['assemble up', 'start the workspace and open the console'],
+  ['assemble up', 'this terminal becomes the workspace'],
   ['assemble add claude --mission "port the parser"', 'enlist an agent on a job'],
   ['assemble add codex --mission "write the tests for it"', 'and another, alongside'],
   ['assemble ls', 'see them both working'],
@@ -34,11 +46,17 @@ export function printHelp(): number {
     print(`  ${name.padEnd(20)} ${dim(description)}`);
   }
   print();
+  print(bold('inside the workspace'));
+  for (const [keys, meaning] of INSIDE) {
+    print(`  ${keys.padEnd(20)} ${dim(meaning)}`);
+  }
+  print();
   print(bold('common flags'));
   print(`  ${'--port <n>'.padEnd(20)} ${dim('daemon port (default 4319)')}`);
   print(`  ${'--mission "..."'.padEnd(20)} ${dim('what an agent is being enlisted to do')}`);
   print(`  ${'--handle <name>'.padEnd(20)} ${dim('name a member yourself')}`);
   print(`  ${'--no-start'.padEnd(20)} ${dim('prepare a member without launching it')}`);
+  print(`  ${'--web'.padEnd(20)} ${dim('serve only the browser console, leave the terminal alone')}`);
   print();
   print(bold('a first run'));
   for (const [command, description] of EXAMPLES) {

@@ -16,7 +16,7 @@ Running several coding agents on one repository today means several terminals, s
 - **Talking** — an agent-to-agent bus exposed over MCP: direct messages, broadcasts, channels, threaded replies.
 - **Non-colliding** — advisory file leases. An agent declares intent before editing, and is told who is already in there.
 - **Shared plan** — one task board every agent reads from and writes to, with claims that only one agent can win.
-- **Watchable** — a canvas where every agent is a live terminal you can type into, wired to the others by the messages actually passing between them.
+- **Watchable** — your own terminal becomes the workspace: a pane per agent, wired to the others by the messages actually passing between them. A browser console shows the same thing if you prefer one.
 
 ## Quick start
 
@@ -36,27 +36,22 @@ From inside the repository you want the crew to work on:
 assemble init
 ```
 
-Start the workspace. It owns the agents and serves the console at `http://127.0.0.1:4319`:
+Then hand the terminal over:
 
 ```bash
 assemble up
 ```
 
-Then, in another terminal, put agents on the job:
+The screen becomes the workspace. Put agents on the job from the line at the bottom:
 
-```bash
-assemble add claude --mission "port the parser to the new token type"
+```
+/add claude port the parser to the new token type
+/add codex write the tests for the new parser
 ```
 
-```bash
-assemble add codex --mission "write the tests for the new parser"
-```
+Each `/add` cuts a branch, checks out a worktree, wires the coordination tools into that agent's own MCP config, and starts it in its own pane. Both agents are now working the same project in parallel, and can reach each other. `/quit` stops them and gives the terminal back.
 
-```bash
-assemble ls
-```
-
-Each `add` cuts a branch, checks out a worktree, wires the coordination tools into that agent's own MCP config, and starts it. Both agents are now working the same project in parallel, and can reach each other.
+Everything is available as a plain command too, for scripts and for a second terminal: `assemble add claude --mission "..."`, `assemble ls`, `assemble feed`.
 
 ## How they coordinate
 
@@ -91,25 +86,50 @@ That exchange is covered by an end-to-end test that runs two real agent processe
 
 ## The console
 
-`assemble up` serves a console at `http://127.0.0.1:4319`. It is not a dashboard — it is the workspace itself, laid out as a place:
+`assemble up` takes over the terminal you ran it in. Every agent becomes a pane, the panes are wired to a bus in the middle, and one line at the bottom drives all of them.
 
-- **Every agent is a terminal window.** Real chrome, real PTY, real keyboard. Drag them, resize them, collapse the ones you are not watching. Where you put them is remembered.
-- **The lines are the coordination.** A dotted spine ties each member to the bus. A green arc appears between two members only once they have actually messaged each other, thickens with traffic, and carries a travelling dot while it is warm. A dashed red arc means two members hold overlapping claims on the same files.
-- **One command line drives everything.** Whatever you type goes to the terminal you last clicked; prefixes send it somewhere else instead.
+```
+ ● ● ●  demo-repo                             4 crew   4 running   2 claims   1 open   COMMAND
+──────────────────────────────────────────────────────────────────────────────────────────────
+ ╭─●─●─●─ claude — claude — 63×13 ───────✉5 ●─╮           ╭─●─●─●─ codex — codex — 63×13 ──●─╮
+ │ $ claim src/parser/**                      │           │ $ npm test                       │
+ │ granted until 20:14                        │◀─       ─▶│   14 passing                     │
+ │ rewriting the tokeniser…                   │ │       │ │                                  │
+ │ port the parser to the new token type      │ │       │ │ write the tests for the parser   │
+ ╰────────────────────────────────────────────╯ │       │ ╰──────────────────────────────────╯
+                                                │ ╭─────╮│
+                                                ┼─│ bus │┼
+                                                │ ╰─────╯│
+                                        parse(input): Token[] is settled
+ ╭─●─●─●─ gemini — gemini — 63×13 ───────✉2 ●─╮ │       │ ╭─●─●─●─ aider — aider — 63×13 ──●─╮
+```
+
+Each pane is a real terminal — the agent's own output, cursor moves, colour and redraws, emulated and copied into the box. The wires are drawn from what the workspace actually knows: grey when quiet, phosphor with a travelling dot while two members are talking, red and dashed when two of them hold overlapping claims on the same files.
 
 | You type | What happens |
 | --- | --- |
-| `npm test` | runs in the focused terminal |
+| `npm test` | runs in the focused pane |
 | `@codex lexer moved` | messages that agent |
 | `@codex lexer moved -- see src/lexer.ts` | subject and body |
 | `/all standup in five` | messages everyone working |
 | `/task port the parser` | files work on the shared board |
 | `/add claude write the tests` | enlists another agent, running |
 | `/start <handle>`, `/stop <handle>` | control a member |
+| `/quit` | stops the crew and gives the terminal back |
 
-Arrow keys walk the history, `tab` completes a handle, and `/` or `@` jumps to the command line from anywhere.
+| Key | What it does |
+| --- | --- |
+| `ctrl-a` | attach your keyboard straight to the focused pane, for agents with their own UI |
+| `ctrl-]` | detach again |
+| `ctrl-n` / `ctrl-p` | next / previous pane |
+| `tab` | complete a handle after `@`, or move focus |
+| `↑` / `↓` | walk the command history |
 
-The feed, board, claims and event log open as a panel over the canvas rather than living permanently beside it.
+It runs on the alternate screen, so quitting leaves your scrollback exactly as it was.
+
+### In a browser instead
+
+The same workspace is served at `http://127.0.0.1:4319` the whole time — a canvas of draggable terminal windows with the same wires, plus panels for the feed, the board, the claims and the event log. `assemble up --web` skips the terminal takeover and serves only that, which is what you want under a process manager.
 
 ## Command line
 
@@ -175,7 +195,8 @@ State lives in one SQLite file under `.assemble/`, so a crashed daemon rehydrate
 | `@assemble/core` | Domain logic: state store, worktree manager, message bus, leases, task board |
 | `@assemble/daemon` | Long-running process: PTY supervision, REST + WebSocket API |
 | `@assemble/mcp` | MCP server that hands agents their coordination tools |
-| `@assemble/cli` | `assemble` — init, add, ls, send, tasks, doctor |
+| `@assemble/tui` | The terminal console: panes, wiring, command line |
+| `@assemble/cli` | `assemble` — init, up, add, ls, send, tasks, doctor |
 | `@assemble/ui` | Web console |
 
 ## Requirements
