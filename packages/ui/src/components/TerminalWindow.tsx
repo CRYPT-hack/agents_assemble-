@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { JSX, PointerEvent as ReactPointerEvent } from 'react';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
@@ -66,6 +66,11 @@ export function TerminalWindow(props: Props): JSX.Element {
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const sizeRef = useRef<HTMLSpanElement>(null);
+  const quietTimer = useRef<number | undefined>(undefined);
+
+  // True for a moment after anything is printed, so a glance at the canvas
+  // shows which agents are actually doing something right now.
+  const [active, setActive] = useState(false);
 
   useEffect(() => {
     if (collapsed || !host.current) return;
@@ -96,6 +101,10 @@ export function TerminalWindow(props: Props): JSX.Element {
       if (who !== member.handle) return;
       if (replace) term.clear();
       term.write(chunk);
+
+      setActive(true);
+      window.clearTimeout(quietTimer.current);
+      quietTimer.current = window.setTimeout(() => setActive(false), 900);
     });
 
     const offInput = term.onData((data) => live.input(member.handle, data));
@@ -110,6 +119,7 @@ export function TerminalWindow(props: Props): JSX.Element {
     if (sizeRef.current) sizeRef.current.textContent = `${term.cols}×${term.rows}`;
 
     return () => {
+      window.clearTimeout(quietTimer.current);
       observer.disconnect();
       offInput.dispose();
       offOutput();
@@ -129,7 +139,7 @@ export function TerminalWindow(props: Props): JSX.Element {
 
   return (
     <section
-      className={`win${focused ? ' focused' : ''}${collapsed ? ' collapsed' : ''}`}
+      className={`win${focused ? ' focused' : ''}${collapsed ? ' collapsed' : ''}${active ? ' active' : ''}`}
       style={{
         transform: `translate(${frame.x}px, ${frame.y}px)`,
         width: frame.width,
