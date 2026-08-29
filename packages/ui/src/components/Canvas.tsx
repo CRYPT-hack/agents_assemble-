@@ -101,11 +101,17 @@ export function Canvas(props: Props): JSX.Element {
     const maxX = Math.max(...list.map((frame) => frame.x + frame.width));
     const maxY = Math.max(...list.map((frame) => frame.y + frame.height));
 
-    const scale = Math.min(1, Math.min((box.width - 120) / (maxX - minX), (box.height - 160) / (maxY - minY)));
+    // Never fit below the point where terminal text stops being readable — a
+    // crew that does not fit is meant to be panned around, not squinted at.
+    const scale = Math.max(
+      0.55,
+      Math.min(1, (box.width - 120) / (maxX - minX), (box.height - 160) / (maxY - minY)),
+    );
+
     setView({
       x: box.width / 2 - ((minX + maxX) / 2) * scale,
       y: box.height / 2 - ((minY + maxY) / 2) * scale,
-      scale: Math.max(0.25, scale),
+      scale,
     });
   }, [frames]);
 
