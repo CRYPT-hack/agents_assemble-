@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The suite spawns real git worktrees and real agent processes, so it
+      # needs an identity to commit its fixtures with.
+      - name: Configure git for fixtures
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "Assemble CI"
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test

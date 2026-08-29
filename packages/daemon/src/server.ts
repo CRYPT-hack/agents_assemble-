@@ -70,7 +70,14 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
       const url = new URL(request.url ?? '/', 'http://localhost');
 
       if (await router.handle(request, response)) return;
-      if (uiRoot && request.method === 'GET' && serveStatic(uiRoot, url.pathname, response)) return;
+
+      // The console is a single-page app, so unknown paths fall back to its
+      // index.html — but never under /api, where an unmatched route is a 404
+      // and callers deserve JSON rather than a page.
+      const isApi = url.pathname === '/api' || url.pathname.startsWith('/api/');
+      if (!isApi && uiRoot && request.method === 'GET' && serveStatic(uiRoot, url.pathname, response)) {
+        return;
+      }
 
       response.writeHead(404, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: { code: 'not_found', message: `No route for ${url.pathname}` } }));
