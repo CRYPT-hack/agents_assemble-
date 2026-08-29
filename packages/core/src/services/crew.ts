@@ -80,7 +80,10 @@ export class Crew {
   }
 
   async enlist(options: EnlistOptions): Promise<EnlistResult> {
-    const spec = resolveAgent(options.agentId, options.spec ?? {});
+    const spec = resolveAgent(options.agentId, {
+      ...(this.config.agents?.[options.agentId] ?? {}),
+      ...(options.spec ?? {}),
+    });
     const handle = options.handle ?? this.mintHandle(spec.id);
     const branch = `${this.config.branchPrefix}${handle}`;
     const worktree = join(this.config.worktreeRoot, handle);

@@ -231,4 +231,10 @@ export interface WorkspaceConfig {
   branchPrefix: string;
   /** Default lease duration in seconds. */
   leaseTtlSeconds: number;
+  /**
+   * Per-agent overrides, keyed by catalog id. Anything in an `AgentSpec` may be
+   * replaced, and an id that is not in the catalog defines a new agent outright
+   * so long as it names a `command`.
+   */
+  agents?: Record<string, Partial<AgentSpec>>;
 }

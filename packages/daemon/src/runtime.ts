@@ -3,7 +3,7 @@ import { EventEmitter } from 'node:events';
 import {
   AssembleError,
   renderPrompt,
-  requireAgent,
+  resolveAgent,
   type Member,
   type Workspace,
   type WorkspaceEvent,
@@ -82,7 +82,7 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
     }
 
     const member = this.workspace.crew.require(handle);
-    const spec = requireAgent(member.agentId);
+    const spec = resolveAgent(member.agentId, this.workspace.config.agents?.[member.agentId] ?? {});
     const mission = options.mission ?? member.mission;
 
     const args = [...spec.args, ...(options.args ?? [])];
