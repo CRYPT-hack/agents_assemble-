@@ -136,8 +136,17 @@
   font-size: 10px;
   color: var(--text-faint);
   white-space: nowrap;
+  flex: none;
+}
+
+/* What this agent was sent here to do — the one line worth keeping visible. */
+.win-foot .on-it {
+  font: 11px/1 var(--sans);
+  color: var(--text-dim);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 55%;
 }
 
 .win-foot .spacer {

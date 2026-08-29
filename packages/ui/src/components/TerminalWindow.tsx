@@ -170,8 +170,11 @@ export function TerminalWindow(props: Props): JSX.Element {
           <div className="screen" ref={host} />
 
           <footer className="win-foot">
-            <code title={member.branch}>{member.branch}</code>
+            <span className="on-it" title={member.mission || 'no mission set'}>
+              {member.mission || 'no mission set'}
+            </span>
             <span className="spacer" />
+            <code title={member.branch}>{member.branch}</code>
             {running ? (
               <button
                 className="ghost"

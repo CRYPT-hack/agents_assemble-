@@ -13,7 +13,7 @@ interface Props {
 }
 
 const STROKE: Record<Link['kind'], string> = {
-  spine: 'var(--rule-strong)',
+  spine: '#3d4a60',
   message: 'var(--phos)',
   conflict: 'var(--coral)',
 };
@@ -63,7 +63,7 @@ export function LinkLayer({ links, rects, focused, extent }: Props): JSX.Element
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <path d="M 0 1 L 7 4 L 0 7 z" fill="var(--rule-strong)" />
+          <path d="M 0 1 L 7 4 L 0 7 z" fill="#3d4a60" />
         </marker>
       </defs>
 

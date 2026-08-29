@@ -87,7 +87,7 @@ export function Hero({ agents, busy, repoRoot, baseBranch, onEnlist }: Props): J
 /** The canvas, in miniature: a bus, three terminals, the lines between them. */
 function HeroDiagram(): JSX.Element {
   return (
-    <svg className="hero-diagram" viewBox="0 0 620 210" role="img" aria-label="Three terminals linked to a shared bus">
+    <svg className="hero-diagram" viewBox="-6 0 626 210" role="img" aria-label="Three terminals linked to a shared bus">
       <defs>
         <marker id="hero-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M 0 1 L 7 4 L 0 7 z" fill="var(--phos-dim)" />
@@ -100,8 +100,9 @@ function HeroDiagram(): JSX.Element {
       <path d="M 358 105 C 410 105, 420 42, 470 42" className="hero-line" markerEnd="url(#hero-arrow)" />
       <path d="M 358 105 C 400 105, 420 105, 470 105" className="hero-line" markerEnd="url(#hero-arrow)" />
 
+      {/* One agent talking straight to another, around the outside of the bus. */}
       <path
-        d="M 96 60 C 96 96, 96 130, 96 150"
+        d="M 40 64 C 6 92, 6 138, 40 146"
         className="hero-line talk"
         markerEnd="url(#hero-arrow)"
       />

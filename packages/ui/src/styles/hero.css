@@ -300,6 +300,11 @@
   margin: 18px 0 0;
   font: 10px/1.4 var(--mono);
   color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  direction: rtl;
+  text-align: left;
 }
 
 @media (max-width: 720px) {
