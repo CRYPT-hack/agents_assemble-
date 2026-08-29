@@ -1,0 +1,151 @@
+/* The canvas the terminals live on. */
+
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  cursor: grab;
+  background-color: var(--ink-000);
+  /* A faint plotting grid, so panning reads as movement over a surface. */
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(148, 165, 190, 0.09) 1px, transparent 0),
+    radial-gradient(1200px 700px at 50% 42%, rgba(94, 242, 160, 0.05), transparent 70%);
+  background-size: 26px 26px, 100% 100%;
+}
+
+.canvas:active {
+  cursor: grabbing;
+}
+
+.world {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* links ------------------------------------------------------------------- */
+
+.links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.link.spine path {
+  opacity: 0.4;
+}
+
+.link.message path {
+  opacity: 0.45;
+  filter: drop-shadow(0 0 4px rgba(94, 242, 160, 0.25));
+}
+
+.link.message.warm path {
+  opacity: 0.95;
+}
+
+.link.conflict path {
+  opacity: 0.85;
+  animation: dashfloat 1.4s linear infinite;
+}
+
+.link.near path {
+  opacity: 1;
+}
+
+.link-label {
+  font: 10px/1 var(--mono);
+  fill: var(--text-faint);
+  paint-order: stroke;
+  stroke: var(--ink-000);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.link.conflict .link-label {
+  fill: var(--coral);
+}
+
+.packet {
+  filter: drop-shadow(0 0 5px var(--phos));
+}
+
+@keyframes dashfloat {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+/* the bus ----------------------------------------------------------------- */
+
+.hub {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 168px;
+  height: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  text-align: center;
+  padding: 0 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 14px;
+  background: linear-gradient(180deg, var(--ink-300), var(--ink-100));
+  box-shadow: 0 0 0 6px rgba(94, 242, 160, 0.04);
+}
+
+.hub.busy {
+  border-color: var(--phos-dim);
+  box-shadow: 0 0 0 6px var(--phos-glow);
+}
+
+.hub strong {
+  font: 13px/1.2 var(--mono);
+  color: var(--text);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hub-meta {
+  font: 10px/1.2 var(--mono);
+  color: var(--text-faint);
+}
+
+/* viewport controls -------------------------------------------------------- */
+
+.viewport-tools {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: rgba(11, 14, 20, 0.86);
+  backdrop-filter: blur(8px);
+}
+
+.viewport-tools button {
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-family: var(--mono);
+}
+
+.viewport-tools .zoom {
+  font: 11px/1 var(--mono);
+  color: var(--text-faint);
+  min-width: 38px;
+  text-align: center;
+}
