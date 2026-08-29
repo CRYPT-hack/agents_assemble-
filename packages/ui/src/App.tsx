@@ -2,16 +2,14 @@ import { useCallback, useEffect, useState } from 'react';
 import type { JSX } from 'react';
 
 import { api } from './api';
-import { Board } from './components/Board';
-import { CrewList } from './components/CrewList';
-import { Enlist } from './components/Enlist';
-import { Feed } from './components/Feed';
-import { Leases } from './components/Leases';
-import { TerminalPane } from './components/TerminalPane';
+import type { Command } from './command';
+import { Canvas } from './components/Canvas';
+import { CommandBar } from './components/CommandBar';
+import { Drawer } from './components/Drawer';
+import { Hero } from './components/Hero';
+import { TopBar, type Panel } from './components/TopBar';
 import type { Agent, Lease, Member, Message, Task } from './types';
 import { useLive } from './useLive';
-
-type Tab = 'feed' | 'board' | 'leases' | 'events';
 
 /**
  * The console.
@@ -19,6 +17,9 @@ type Tab = 'feed' | 'board' | 'leases' | 'events';
  * One socket keeps it live; everything else is refetched whenever an event says
  * something changed, which is cheap at this scale and keeps a single source of
  * truth in the daemon rather than a second one in the browser.
+ *
+ * Two states only: no crew yet, which is the hero and its launcher, or a crew,
+ * which is the canvas. There is no third screen to get lost in.
  */
 export function App(): JSX.Element {
   const live = useLive();
@@ -29,10 +30,10 @@ export function App(): JSX.Element {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [leases, setLeases] = useState<Lease[]>([]);
 
-  const [selected, setSelected] = useState<string>();
-  const [tab, setTab] = useState<Tab>('feed');
+  const [focused, setFocused] = useState<string>();
+  const [panel, setPanel] = useState<Panel>();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
 
   const refresh = useCallback(async () => {
     try {
@@ -47,9 +48,8 @@ export function App(): JSX.Element {
       setMessages(messageList.messages);
       setTasks(taskList.tasks);
       setLeases(leaseList.leases);
-      setError(undefined);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
+      setNotice(cause instanceof Error ? cause.message : String(cause));
     }
   }, []);
 
@@ -65,134 +65,159 @@ export function App(): JSX.Element {
   }, [live.events.length, refresh]);
 
   useEffect(() => {
-    if (!selected && members.length > 0) setSelected(members[0]?.handle);
-  }, [members, selected]);
+    if (!focused && members.length > 0) setFocused(members[0]?.handle);
+  }, [members, focused]);
 
-  const act = async (fn: () => Promise<unknown>): Promise<void> => {
-    setBusy(true);
-    try {
-      await fn();
-      await refresh();
-      setError(undefined);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const act = useCallback(
+    async (fn: () => Promise<unknown>, said?: string): Promise<void> => {
+      setBusy(true);
+      try {
+        await fn();
+        await refresh();
+        setNotice(said);
+      } catch (cause) {
+        setNotice(cause instanceof Error ? cause.message : String(cause));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
 
+  const run = useCallback(
+    (command: Command): void => {
+      switch (command.kind) {
+        case 'type':
+          live.input(command.handle, `${command.text}\r`);
+          setNotice(undefined);
+          return;
+
+        case 'message':
+          void act(
+            () => api.send({ from: 'workspace', to: command.to, subject: command.subject, body: command.body }),
+            `sent to ${command.to.join(', ')}`,
+          );
+          return;
+
+        case 'broadcast':
+          void act(
+            () => api.send({ from: 'workspace', subject: command.subject, body: command.body }),
+            'broadcast to everyone working',
+          );
+          return;
+
+        case 'task':
+          void act(() => api.createTask({ title: command.title }), 'filed on the board');
+          return;
+
+        case 'enlist':
+          void act(
+            () => api.enlist({ agentId: command.agentId, mission: command.mission, start: true }),
+            `${command.agentId} enlisted`,
+          );
+          return;
+
+        case 'start':
+          void act(() => api.start(command.handle), `${command.handle} started`);
+          return;
+
+        case 'stop':
+          void act(() => api.stop(command.handle), `${command.handle} stopped`);
+          return;
+
+        case 'help':
+          setNotice(undefined);
+          return;
+
+        case 'error':
+          setNotice(command.message);
+      }
+    },
+    [act, live],
+  );
+
+  const name = live.snapshot?.config.name ?? 'workspace';
   const running = members.filter((member) => member.running).length;
-  const handles = members.map((member) => member.handle);
+  const openTasks = tasks.filter((task) => task.status !== 'done' && task.status !== 'cancelled').length;
+  const blocked = members.filter((member) => member.status === 'blocked').length;
+
+  if (members.length === 0) {
+    return (
+      <div className="app">
+        <TopBar
+          name={name}
+          {...(live.snapshot?.config.repoRoot ? { repoRoot: live.snapshot.config.repoRoot } : {})}
+          connected={live.connected}
+          readouts={[]}
+          onPanel={setPanel}
+        />
+        <Hero
+          agents={agents}
+          busy={busy}
+          {...(live.snapshot?.config.repoRoot ? { repoRoot: live.snapshot.config.repoRoot } : {})}
+          {...(live.snapshot?.config.baseBranch ? { baseBranch: live.snapshot.config.baseBranch } : {})}
+          onEnlist={(agentId, mission) =>
+            void act(() => api.enlist({ agentId, mission, start: true }), `${agentId} enlisted`)
+          }
+        />
+        {notice ? <div className="toast">{notice}</div> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="app">
-      <header className="top">
-        <div className="brand">
-          <span className="mark">A</span>
-          <div>
-            <h1>{live.snapshot?.config.name ?? 'workspace'}</h1>
-            <p>{live.snapshot?.config.repoRoot}</p>
-          </div>
-        </div>
+      <TopBar
+        name={name}
+        {...(live.snapshot?.config.repoRoot ? { repoRoot: live.snapshot.config.repoRoot } : {})}
+        connected={live.connected}
+        readouts={[
+          { label: 'crew', value: members.length },
+          { label: 'running', value: running, tone: 'phos' },
+          { label: 'claims', value: leases.length, tone: leases.length > 0 ? 'amber' : undefined },
+          { label: 'open work', value: openTasks },
+          ...(blocked > 0 ? [{ label: 'blocked', value: blocked, tone: 'coral' as const }] : []),
+        ]}
+        {...(panel ? { panel } : {})}
+        onPanel={setPanel}
+      />
 
-        <div className="stats">
-          <span>
-            <b>{members.length}</b> members
-          </span>
-          <span>
-            <b>{running}</b> running
-          </span>
-          <span>
-            <b>{leases.length}</b> claims
-          </span>
-          <span>
-            <b>{tasks.filter((task) => task.status !== 'done').length}</b> open tasks
-          </span>
-          <span className={live.connected ? 'link ok' : 'link bad'}>
-            {live.connected ? 'live' : 'reconnecting'}
-          </span>
-        </div>
-      </header>
+      <div className="stage">
+        <Canvas
+          members={members}
+          messages={messages}
+          leases={leases}
+          live={live}
+          workspaceName={name}
+          {...(focused ? { focused } : {})}
+          onFocus={setFocused}
+          onStart={(handle) => void act(() => api.start(handle), `${handle} started`)}
+          onStop={(handle) => void act(() => api.stop(handle), `${handle} stopped`)}
+        />
 
-      {error ? <div className="error">{error}</div> : null}
-
-      <main>
-        <aside className="left">
-          <h3>Crew</h3>
-          <CrewList
-            members={members}
-            {...(selected ? { selected } : {})}
-            onSelect={setSelected}
-            onStart={(handle) => void act(() => api.start(handle))}
-            onStop={(handle) => void act(() => api.stop(handle))}
+        {panel ? (
+          <Drawer
+            panel={panel}
+            messages={messages}
+            tasks={tasks}
+            leases={leases}
+            events={live.events}
+            onClose={() => setPanel(undefined)}
+            onPickHandle={(handle) => {
+              if (members.some((member) => member.handle === handle)) setFocused(handle);
+            }}
+            onCreateTask={(title) => void act(() => api.createTask({ title }), 'filed on the board')}
+            onMoveTask={(id, status) => void act(() => api.moveTask(id, status))}
           />
-          <Enlist
-            agents={agents}
-            busy={busy}
-            onEnlist={(agentId, mission, start) =>
-              void act(() => api.enlist({ agentId, mission, start }))
-            }
-          />
-        </aside>
+        ) : null}
+      </div>
 
-        <section className="centre">
-          <div className="pane-head">
-            <h3>{selected ? `${selected} · terminal` : 'terminal'}</h3>
-            {selected ? <code>{members.find((m) => m.handle === selected)?.branch}</code> : null}
-          </div>
-          {selected ? (
-            <TerminalPane key={selected} handle={selected} live={live} />
-          ) : (
-            <p className="empty">Select a member to watch it work.</p>
-          )}
-        </section>
-
-        <aside className="right">
-          <nav className="tabs">
-            {(['feed', 'board', 'leases', 'events'] as Tab[]).map((name) => (
-              <button
-                key={name}
-                className={name === tab ? 'active' : ''}
-                onClick={() => setTab(name)}
-              >
-                {name}
-              </button>
-            ))}
-          </nav>
-
-          {tab === 'feed' ? (
-            <Feed
-              messages={messages}
-              handles={handles}
-              onSend={(to, subject, body) =>
-                void act(() => api.send({ from: 'workspace', to, subject, body }))
-              }
-            />
-          ) : null}
-
-          {tab === 'board' ? (
-            <Board
-              tasks={tasks}
-              onCreate={(title) => void act(() => api.createTask({ title }))}
-              onMove={(id, status) => void act(() => api.moveTask(id, status))}
-            />
-          ) : null}
-
-          {tab === 'leases' ? <Leases leases={leases} /> : null}
-
-          {tab === 'events' ? (
-            <ul className="events">
-              {live.events.map((event) => (
-                <li key={event.id}>
-                  <span className="type">{event.type}</span>
-                  <span className="actor">{event.actor}</span>
-                  <time>{new Date(event.createdAt).toLocaleTimeString()}</time>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </aside>
-      </main>
+      <CommandBar
+        {...(focused ? { focused } : {})}
+        handles={members.map((member) => member.handle)}
+        onRun={run}
+        {...(notice ? { notice } : {})}
+      />
     </div>
   );
 }
