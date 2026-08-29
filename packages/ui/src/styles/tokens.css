@@ -1,0 +1,200 @@
+/*
+ * Design tokens.
+ *
+ * The console is a place where terminals live, so it is built out of terminal
+ * materials: near-black ink, phosphor green, hairline rules, one monospace
+ * family for everything that is machine truth and one sans for everything a
+ * human wrote. No gradients on surfaces, no drop shadows for decoration — depth
+ * comes from elevation on the canvas and nothing else.
+ */
+
+:root {
+  /* ink */
+  --ink-000: #050609;
+  --ink-050: #080a0f;
+  --ink-100: #0b0e14;
+  --ink-200: #10141c;
+  --ink-300: #161b26;
+  --ink-400: #1e2532;
+
+  /* rules and edges */
+  --rule: #1d2431;
+  --rule-strong: #2b3547;
+
+  /* type */
+  --text: #dfe5ee;
+  --text-dim: #93a0b4;
+  --text-faint: #5d6b80;
+
+  /* phosphor: the working colour of the whole product */
+  --phos: #5ef2a0;
+  --phos-dim: #2f8f61;
+  --phos-glow: rgba(94, 242, 160, 0.18);
+
+  /* signals */
+  --amber: #f2c15e;
+  --coral: #ff6b5e;
+  --violet: #a78bfa;
+  --cyan: #56cfe1;
+
+  /* mac window chrome */
+  --mac-close: #ff5f57;
+  --mac-min: #febc2e;
+  --mac-max: #28c840;
+
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
+  --sans: "Inter", ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink-000);
+  color: var(--text);
+  font: 13px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+code,
+kbd,
+pre {
+  font-family: var(--mono);
+}
+
+/* One button style, three weights. */
+button {
+  font: 12px/1 var(--sans);
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s, background 0.12s;
+}
+
+button:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--rule-strong);
+  background: var(--ink-300);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+button.primary {
+  color: var(--ink-000);
+  background: var(--phos);
+  border-color: var(--phos);
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #7bf7b3;
+  border-color: #7bf7b3;
+  color: var(--ink-000);
+}
+
+button.ghost {
+  border-color: transparent;
+  padding: 4px 6px;
+}
+
+input,
+select,
+textarea {
+  font: 12px/1.4 var(--mono);
+  color: var(--text);
+  background: var(--ink-050);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-sm);
+  padding: 7px 9px;
+  min-width: 0;
+}
+
+input::placeholder {
+  color: var(--text-faint);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--phos-dim);
+  box-shadow: 0 0 0 3px var(--phos-glow);
+}
+
+/* Small caps label used above every region. */
+.label {
+  font: 10px/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* A status light, not a coloured dot: it glows when it means something. */
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  flex: none;
+}
+
+.led.live {
+  background: var(--phos);
+  box-shadow: 0 0 0 3px var(--phos-glow);
+}
+
+.led.warn {
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(242, 193, 94, 0.16);
+}
+
+.led.bad {
+  background: var(--coral);
+  box-shadow: 0 0 0 3px rgba(255, 107, 94, 0.16);
+}
+
+.led.idle {
+  background: var(--text-faint);
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ink-400);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
