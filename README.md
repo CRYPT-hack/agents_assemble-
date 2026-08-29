@@ -199,6 +199,15 @@ State lives in one SQLite file under `.assemble/`, so a crashed daemon rehydrate
 | `@assemble/cli` | `assemble` — init, up, add, ls, send, tasks, doctor |
 | `@assemble/ui` | Web console |
 
+## What it will not do
+
+A workspace runs programs and types into shells, so a few things are refused on principle:
+
+- **Only the operator drives it.** The daemon answers loopback only, rejects requests carrying another site's `Origin` or a non-loopback `Host`, and requires the token from `.assemble/token`. A page you happen to have open cannot enlist an agent or type into one.
+- **Names stay names.** A handle becomes a directory and a branch, so it is checked before either exists — `../` never leaves the worktree root, and a branch or base that starts with a dash is refused rather than handed to git as an option.
+- **The log is not forgeable.** A message has to come from a real member or from the workspace itself; agents are identified by the process they were launched in, not by a field they can set.
+- **A clone does not choose what runs.** If `.assemble/workspace.json` is committed to the repository, its agent definitions are ignored and the crew is told why — cloning a repository should never decide which binaries execute on your machine.
+
 ## Requirements
 
 - Node.js 24+ (the workspace database uses `node:sqlite`, so there is no native build step)

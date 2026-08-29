@@ -92,6 +92,26 @@ Every failure is JSON:
 | `conflict`, `lease_conflict`, `not_running` | 409 |
 | `git_failed`, `spawn_failed` | 500 |
 
-## Binding
+## Getting in
 
-The daemon binds to loopback. It has no authentication, because it can start processes and read the repository — treat it as a local tool, and do not expose the port.
+The daemon can start processes, type into running shells and read the repository, so reaching it takes more than knowing the port. Every request — REST and WebSocket alike — passes three checks:
+
+| Check | Why |
+| --- | --- |
+| `Host` names loopback | A DNS rebinding attack points a hostile domain at 127.0.0.1, but the browser still sends that domain here |
+| `Origin`, when sent, is this daemon | Browsers always send it cross-origin, which makes this the CSRF check |
+| A valid workspace token | So that a local program cannot drive your agents just by finding the port |
+
+The token lives at `.assemble/token` inside the repository, owner-readable, created on first start.
+
+- **The console** is served with the token baked into its page. A hostile site cannot read a cross-origin response, so it cannot steal it that way.
+- **The CLI** reads the file, which is why `assemble ls` needs no configuration.
+- **Anything else** sends it as `x-assemble-token`, or as `?token=` where headers are not available — a browser WebSocket, for instance.
+
+```bash
+curl -H "x-assemble-token: $(cat .assemble/token)" http://127.0.0.1:4319/api/members
+```
+
+Failures are explicit: `401` for a missing or wrong token, `403` for a request from another origin or addressed to a name that is not loopback.
+
+The daemon still binds to loopback only. None of this makes it safe to expose publicly, and it is not meant to be.
