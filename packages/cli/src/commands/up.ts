@@ -2,8 +2,9 @@ import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
 import { startDaemon } from '@assemble/daemon';
+import { runTui } from '@assemble/tui';
 
-import { flagNumber, flagString, type Parsed } from '../args.js';
+import { flagBool, flagNumber, flagString, type Parsed } from '../args.js';
 import { DEFAULT_PORT } from '../client.js';
 import { bold, dim, green, print, warn } from '../output.js';
 
@@ -25,22 +26,43 @@ function resolveMcpLauncher(): { command: string; args: string[] } {
 }
 
 /**
- * `assemble up` — run the workspace daemon in the foreground.
+ * `assemble up` — run the workspace.
  *
- * This is the process that owns the agents. Closing it stops them, which is why
- * it stays in the foreground and says so.
+ * By default this takes over the terminal: every agent gets a pane, the panes
+ * are wired to the bus, and one command line drives all of them. `/quit` gives
+ * the terminal back. Pass `--web` to stay out of the way and serve only the
+ * browser console, which is what you want when running under a process manager.
  */
 export async function upCommand(parsed: Parsed): Promise<number> {
   const launcher = resolveMcpLauncher();
+  const port = flagNumber(parsed.flags, 'port', 'p') ?? DEFAULT_PORT;
 
   const daemon = await startDaemon({
     cwd: process.cwd(),
-    port: flagNumber(parsed.flags, 'port', 'p') ?? DEFAULT_PORT,
+    port,
     ...(flagString(parsed.flags, 'host') ? { host: flagString(parsed.flags, 'host') as string } : {}),
     ...(flagString(parsed.flags, 'ui') ? { uiRoot: flagString(parsed.flags, 'ui') as string } : {}),
     mcpCommand: launcher.command,
     mcpArgs: launcher.args,
   });
+
+  if (launcher.command === 'assemble-mcp') {
+    warn('Could not locate @assemble/mcp; agents will look for `assemble-mcp` on PATH.');
+  }
+
+  const wantsTui =
+    flagBool(parsed.flags, 'tui', true) && !flagBool(parsed.flags, 'web', false) && process.stdout.isTTY;
+
+  if (wantsTui) {
+    try {
+      await runTui(daemon);
+    } finally {
+      await daemon.close();
+    }
+
+    print(`${dim('workspace closed.')} ${dim(`branches are where the agents left them`)}`);
+    return 0;
+  }
 
   const members = daemon.workspace.crew.list();
 
@@ -49,10 +71,6 @@ export async function upCommand(parsed: Parsed): Promise<number> {
   print(`  ${dim('add')}   assemble add claude --mission "..."`);
   print();
   print(dim('Ctrl-C stops the workspace and every agent in it.'));
-
-  if (launcher.command === 'assemble-mcp') {
-    warn('Could not locate @assemble/mcp; agents will look for `assemble-mcp` on PATH.');
-  }
 
   await new Promise<void>((resolve) => {
     const shutdown = (): void => {
