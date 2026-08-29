@@ -16,7 +16,7 @@ Running several coding agents on one repository today means several terminals, s
 - **Talking** — an agent-to-agent bus exposed over MCP: direct messages, broadcasts, channels, threaded replies.
 - **Non-colliding** — advisory file leases. An agent declares intent before editing, and is told who is already in there.
 - **Shared plan** — one task board every agent reads from and writes to, with claims that only one agent can win.
-- **Watchable** — a live console with every agent's terminal, the message feed, the board and the current claims.
+- **Watchable** — a canvas where every agent is a live terminal you can type into, wired to the others by the messages actually passing between them.
 
 ## Quick start
 
@@ -88,6 +88,28 @@ A typical collision, resolved without you:
 5. `bob` claims them and carries on.
 
 That exchange is covered by an end-to-end test that runs two real agent processes against one workspace.
+
+## The console
+
+`assemble up` serves a console at `http://127.0.0.1:4319`. It is not a dashboard — it is the workspace itself, laid out as a place:
+
+- **Every agent is a terminal window.** Real chrome, real PTY, real keyboard. Drag them, resize them, collapse the ones you are not watching. Where you put them is remembered.
+- **The lines are the coordination.** A dotted spine ties each member to the bus. A green arc appears between two members only once they have actually messaged each other, thickens with traffic, and carries a travelling dot while it is warm. A dashed red arc means two members hold overlapping claims on the same files.
+- **One command line drives everything.** Whatever you type goes to the terminal you last clicked; prefixes send it somewhere else instead.
+
+| You type | What happens |
+| --- | --- |
+| `npm test` | runs in the focused terminal |
+| `@codex lexer moved` | messages that agent |
+| `@codex lexer moved -- see src/lexer.ts` | subject and body |
+| `/all standup in five` | messages everyone working |
+| `/task port the parser` | files work on the shared board |
+| `/add claude write the tests` | enlists another agent, running |
+| `/start <handle>`, `/stop <handle>` | control a member |
+
+Arrow keys walk the history, `tab` completes a handle, and `/` or `@` jumps to the command line from anywhere.
+
+The feed, board, claims and event log open as a panel over the canvas rather than living permanently beside it.
 
 ## Command line
 
