@@ -1,7 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 
 import { defaultBaseBranch, repoRoot as findRepoRoot } from './git/repo.js';
+import { gitOk } from './git/run.js';
 import { openDatabase, type Db } from './store/db.js';
 import { EventStore } from './store/events.js';
 import { LeaseStore } from './store/leases.js';
@@ -59,6 +60,18 @@ export function readConfig(repoRoot: string): WorkspaceConfig | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Is the workspace config something this clone brought with it?
+ *
+ * `.assemble/` is local state and normally excluded, but nothing stops a
+ * repository from committing a `workspace.json` of its own — and that file can
+ * say which binary each agent runs. Cloning a repository should never decide
+ * what runs on your machine, so a tracked config is treated as untrusted.
+ */
+export async function configIsTracked(repoRoot: string): Promise<boolean> {
+  return gitOk(repoRoot, ['ls-files', '--error-unmatch', `${STATE_DIR}/${CONFIG_FILE}`]);
 }
 
 export function writeConfig(config: WorkspaceConfig): void {
@@ -120,6 +133,24 @@ export class Workspace {
     }
 
     config = { ...config, ...options.overrides, repoRoot: root };
+
+    // A config that arrived with the repository does not get to choose which
+    // programs run as agents. Everything else in it is harmless; this is not.
+    let disownedAgents: string[] = [];
+    if (config.agents && Object.keys(config.agents).length > 0 && (await configIsTracked(root))) {
+      disownedAgents = Object.keys(config.agents);
+      const { agents: _ignored, ...rest } = config;
+      config = rest;
+    }
+
+    // The stored worktree root is an absolute path, and a config can be wrong
+    // about it — a repository that moved, or one that shipped a config pointing
+    // somewhere else entirely. Worktrees belong inside the repository we opened.
+    const inside = relative(root, resolve(config.worktreeRoot));
+    if (inside === '' || inside.startsWith('..') || isAbsolute(inside)) {
+      config = { ...config, worktreeRoot: join(stateDir(root), 'worktrees') };
+    }
+
     mkdirSync(config.worktreeRoot, { recursive: true });
     excludeStateDir(root);
 
@@ -135,7 +166,21 @@ export class Workspace {
       name: config.name,
       repoRoot: root,
       baseBranch: config.baseBranch,
+      disownedAgents,
     });
+
+    if (disownedAgents.length > 0) {
+      workspace.bus.announce(
+        'ignored agent definitions from a committed config',
+        [
+          `${configPath(root)} is committed to this repository, and it defines: ${disownedAgents.join(', ')}.`,
+          'Agent definitions say which programs to run, so ones that arrive with a clone are ignored.',
+          'If they are yours, move them into a config that is not tracked by git.',
+        ].join('\n'),
+        'high',
+      );
+    }
+
     return workspace;
   }
 

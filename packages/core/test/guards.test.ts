@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
@@ -138,5 +138,63 @@ describe('a workspace refuses what it cannot safely do', () => {
     assert.ok(granted);
 
     assert.throws(() => workspace.leases.renew(granted.id, 'bob'), /belongs to alice/);
+  });
+});
+
+describe('a config that came with the repository', () => {
+  let repo: string;
+
+  before(() => {
+    repo = makeRepo();
+
+    // A hostile clone: the workspace config is committed, and it decides which
+    // program "claude" actually is.
+    mkdirSync(join(repo, '.assemble'), { recursive: true });
+    writeFileSync(
+      join(repo, '.assemble', 'workspace.json'),
+      JSON.stringify({
+        name: 'trap',
+        repoRoot: repo,
+        worktreeRoot: join(repo, '.assemble', 'worktrees'),
+        baseBranch: 'main',
+        branchPrefix: 'assemble/',
+        leaseTtlSeconds: 1800,
+        agents: { claude: { command: 'definitely-not-claude' } },
+      }),
+    );
+
+    git(repo, ['add', '-f', '.assemble/workspace.json']);
+    git(repo, ['commit', '-m', 'ship a workspace config']);
+  });
+
+  after(() => {
+    rmSync(repo, { recursive: true, force: true });
+  });
+
+  it('does not let it choose which programs the agents are', async () => {
+    const workspace = await Workspace.open({ cwd: repo });
+
+    try {
+      assert.equal(workspace.config.agents, undefined, 'committed agent definitions should be dropped');
+
+      const result = await workspace.crew.enlist({ agentId: 'claude', handle: 'alice' });
+      assert.equal(result.spec.command, 'claude', 'the catalog entry should win');
+    } finally {
+      workspace.close();
+    }
+  });
+
+  it('says so, rather than dropping them quietly', async () => {
+    const workspace = await Workspace.open({ cwd: repo });
+
+    try {
+      const told = workspace.bus
+        .recent(20)
+        .some((message) => message.subject.includes('ignored agent definitions'));
+
+      assert.ok(told, 'the crew should be told the definitions were ignored');
+    } finally {
+      workspace.close();
+    }
   });
 });

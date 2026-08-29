@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { AssembleError } from '../errors.js';
@@ -90,7 +90,10 @@ export async function createWorktree(options: CreateWorktreeOptions): Promise<Wo
   mkdirSync(resolve(path, '..'), { recursive: true });
   await git(repoRoot, ['worktree', 'add', '-b', options.branch, path, base]);
 
-  const created = (await listWorktrees(repoRoot)).find((worktree) => resolve(worktree.path) === path);
+  // Compare real paths: Windows hands out short 8.3 names for some directories,
+  // and git answers with the long form, so the two spellings rarely match.
+  const target = realPath(path);
+  const created = (await listWorktrees(repoRoot)).find((worktree) => realPath(worktree.path) === target);
   if (!created) {
     throw new AssembleError('git_failed', `Worktree ${path} was not created`, { path });
   }
@@ -116,6 +119,15 @@ export async function removeWorktree(options: RemoveWorktreeOptions): Promise<vo
   if (options.deleteBranch) {
     // -D rather than -d: the branch is usually unmerged on purpose.
     await git(options.repoRoot, ['branch', '-D', options.deleteBranch]).catch(() => undefined);
+  }
+}
+
+/** The canonical spelling of a path, or the path itself if it does not exist. */
+function realPath(path: string): string {
+  try {
+    return realpathSync.native(resolve(path)).toLowerCase();
+  } catch {
+    return resolve(path).toLowerCase();
   }
 }
 

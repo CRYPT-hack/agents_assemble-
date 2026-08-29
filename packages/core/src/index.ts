@@ -68,6 +68,7 @@ export {
   STATE_DIR,
   TOKEN_FILE,
   Workspace,
+  configIsTracked,
   configPath,
   dbPath,
   defaultConfig,
