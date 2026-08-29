@@ -1,8 +1,18 @@
+// Imported first: it installs the warning filter before node:sqlite loads.
+import '../quiet.js';
+
 import { mkdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync as Sqlite } from 'node:sqlite';
 
 import { MIGRATIONS } from './schema.js';
+
+// `node:sqlite` announces itself as experimental the moment it is linked, and
+// static imports link before any module body runs — including the one that
+// installs the filter. Requiring it here, after that filter is in place, keeps
+// stderr clean for the CLI and for every agent's MCP server.
+const { DatabaseSync } = createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite');
 
 /**
  * The workspace database. SQLite via `node:sqlite`, so the whole toolchain
@@ -11,7 +21,7 @@ import { MIGRATIONS } from './schema.js';
  * WAL is on because the daemon writes while the console reads; `busy_timeout`
  * covers the brief overlap when several members hit the bus at once.
  */
-export type Db = DatabaseSync;
+export type Db = Sqlite;
 
 export function openDatabase(file: string): Db {
   if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });

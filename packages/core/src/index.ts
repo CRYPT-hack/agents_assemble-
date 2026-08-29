@@ -1,5 +1,6 @@
 export * from './types.js';
 export * from './errors.js';
+export { quietSqliteWarning } from './quiet.js';
 export { newId, nowIso, hasPrefix, type IdPrefix } from './ids.js';
 
 export { AGENT_CATALOG, agentIds, findAgent, requireAgent, resolveAgent, renderPrompt } from './agents/catalog.js';

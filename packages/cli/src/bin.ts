@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { AssembleError } from '@assemble/core';
+import { AssembleError, quietSqliteWarning } from '@assemble/core';
 
 import { parseArgs, type Parsed } from './args.js';
 import { DaemonError } from './client.js';
@@ -12,6 +12,8 @@ import { taskCommand, tasksCommand } from './commands/board.js';
 import { upCommand } from './commands/up.js';
 import { printHelp } from './help.js';
 import { dim, fail, print } from './output.js';
+
+quietSqliteWarning();
 
 type Command = (parsed: Parsed) => Promise<number> | number;
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { quietSqliteWarning } from '@assemble/core';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
 import { IdentityError, resolveIdentity } from './identity.js';
@@ -8,6 +9,8 @@ import { createServer } from './server.js';
  * Entry point the agents themselves run. Nothing may be written to stdout that
  * is not MCP protocol traffic — diagnostics go to stderr.
  */
+quietSqliteWarning();
+
 async function main(): Promise<void> {
   const identity = resolveIdentity();
   const { server, close } = createServer(identity);
