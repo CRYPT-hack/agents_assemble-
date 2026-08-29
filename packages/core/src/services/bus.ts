@@ -41,6 +41,16 @@ export class Bus {
   send(options: SendOptions): Message {
     const subject = options.subject.trim();
     if (subject === '') throw invalid('A message needs a subject');
+
+    // The log is a record of who said what, so a sender has to be someone: a
+    // real member, or the workspace itself. Inventing a name would let anything
+    // with access to the API put words in an agent's mouth.
+    if (options.from !== WORKSPACE_SENDER && !this.members.findByHandle(options.from)) {
+      throw invalid(`No member called ${options.from} — a message needs a real sender`, {
+        from: options.from,
+      });
+    }
+
     if (options.to && options.channel) {
       throw invalid('A message is either direct or to a channel, not both');
     }

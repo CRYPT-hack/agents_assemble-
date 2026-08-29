@@ -70,10 +70,10 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
         'or neither to broadcast to everyone currently working. Use this to hand off an interface, ' +
         'warn about a change, ask a question, or report that you are done.',
       inputSchema: {
-        subject: z.string().min(1).describe('One line saying what this is about'),
-        body: z.string().default('').describe('The message itself'),
-        to: z.array(z.string()).optional().describe('Handles to address directly'),
-        channel: z.string().optional().describe('Channel to post to, without the #'),
+        subject: z.string().min(1).max(200).describe('One line saying what this is about'),
+        body: z.string().max(20_000).default('').describe('The message itself'),
+        to: z.array(z.string().max(64)).max(32).optional().describe('Handles to address directly'),
+        channel: z.string().max(64).optional().describe('Channel to post to, without the #'),
         priority: priority.optional().describe('urgent interrupts, low waits'),
         taskId: z.string().optional().describe('Task this message concerns'),
       },
@@ -99,7 +99,7 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
       description: 'Answer a message you received. The reply stays in the same thread.',
       inputSchema: {
         messageId: z.string().describe('Id of the message you are answering'),
-        body: z.string().describe('Your reply'),
+        body: z.string().max(20_000).describe('Your reply'),
         subject: z.string().optional().describe('Defaults to re: the original subject'),
         priority: priority.optional(),
       },
@@ -190,8 +190,8 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
         'already holds an overlapping claim you get told who, and should message them rather than ' +
         'edit anyway. Globs are allowed: `src/parser/**/*.ts`.',
       inputSchema: {
-        paths: z.array(z.string()).min(1).describe('Repository-relative paths or globs'),
-        reason: z.string().default('').describe('What you are about to do to them'),
+        paths: z.array(z.string().max(400)).min(1).max(64).describe('Repository-relative paths or globs'),
+        reason: z.string().max(500).default('').describe('What you are about to do to them'),
         mode: z
           .enum(['exclusive', 'shared'])
           .default('exclusive')
@@ -253,7 +253,7 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
       description:
         'Ask who currently claims some paths, without claiming them yourself. Cheap to call before ' +
         'you plan an edit.',
-      inputSchema: { paths: z.array(z.string()).min(1) },
+      inputSchema: { paths: z.array(z.string().max(400)).min(1).max(64) },
     },
     async (args) =>
       guard(() => ({
@@ -298,11 +298,11 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
         'Put work on the shared board — for yourself, for a named member, or for whoever picks it ' +
         'up. Use this instead of doing an unrelated piece of work yourself mid-task.',
       inputSchema: {
-        title: z.string().min(1),
-        body: z.string().default(''),
+        title: z.string().min(1).max(200),
+        body: z.string().max(20_000).default(''),
         assignee: z.string().optional().describe('Handle to give it to, or omit for the backlog'),
-        dependsOn: z.array(z.string()).default([]).describe('Task ids that must finish first'),
-        labels: z.array(z.string()).default([]),
+        dependsOn: z.array(z.string().max(64)).max(32).default([]).describe('Task ids that must finish first'),
+        labels: z.array(z.string().max(48)).max(16).default([]),
       },
     },
     async (args) =>
@@ -348,7 +348,7 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
       inputSchema: {
         taskId: z.string(),
         status: taskStatus,
-        note: z.string().optional().describe('Appended to the task, and visible to everyone'),
+        note: z.string().max(4_000).optional().describe('Appended to the task, and visible to everyone'),
       },
     },
     async (args) =>
@@ -368,7 +368,7 @@ export function registerTools(server: McpServer, workspace: AttachedWorkspace, i
         'members see in `whos_here`, so keep it current — especially when you become blocked.',
       inputSchema: {
         status: memberStatus,
-        note: z.string().optional().describe('One line: what you are on right now'),
+        note: z.string().max(200).optional().describe('One line: what you are on right now'),
       },
     },
     async (args) =>

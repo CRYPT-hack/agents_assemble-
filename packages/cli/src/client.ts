@@ -19,16 +19,21 @@ export class DaemonError extends Error {
  * go through it. Read-only commands fall back to the database when it is down.
  */
 export class DaemonClient {
-  constructor(readonly base: string) {}
+  constructor(
+    readonly base: string,
+    /** The workspace token, read from `.assemble/token` in the repository. */
+    private readonly token = '',
+  ) {}
 
-  static at(port = DEFAULT_PORT, host = '127.0.0.1'): DaemonClient {
-    return new DaemonClient(`http://${host}:${port}`);
+  static at(port = DEFAULT_PORT, host = '127.0.0.1', token = ''): DaemonClient {
+    return new DaemonClient(`http://${host}:${port}`, token);
   }
 
   /** Is a daemon answering on this address? */
   async alive(timeoutMs = 400): Promise<boolean> {
     try {
       const response = await fetch(`${this.base}/api/health`, {
+        headers: this.headers(),
         signal: AbortSignal.timeout(timeoutMs),
       });
       return response.ok;
@@ -40,7 +45,7 @@ export class DaemonClient {
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${this.base}${path}`, {
       ...init,
-      headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+      headers: { ...this.headers(), ...(init?.headers ?? {}) },
     });
 
     const text = await response.text();
@@ -56,6 +61,10 @@ export class DaemonClient {
     }
 
     return payload as T;
+  }
+
+  private headers(): Record<string, string> {
+    return { 'content-type': 'application/json', 'x-assemble-token': this.token };
   }
 
   get<T>(path: string): Promise<T> {

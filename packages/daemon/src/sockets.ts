@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import type { Workspace, WorkspaceEvent } from '@assemble/core';
 import { WebSocketServer, type WebSocket } from 'ws';
 
+import { authorize, type Guard } from './auth.js';
 import type { Runtime } from './runtime.js';
 
 /** Messages a console sends up the socket. */
@@ -48,10 +49,25 @@ export class SocketHub {
     server: Server,
     private readonly workspace: Workspace,
     private readonly runtime: Runtime,
+    guard: Guard,
     private readonly pollMs = 400,
   ) {
     this.cursor = workspace.events.latestSeq();
-    this.wss = new WebSocketServer({ server, path: '/ws' });
+
+    // A socket can drive the workspace exactly as the REST API can, and
+    // WebSocket handshakes are not subject to the same-origin policy at all —
+    // so the check has to happen here too, before the upgrade completes.
+    this.wss = new WebSocketServer({
+      server,
+      path: '/ws',
+      verifyClient: ({ req }, done) => {
+        const url = new URL(req.url ?? '/ws', 'http://localhost');
+        const verdict = authorize(req, url, guard);
+
+        if (verdict.ok) done(true);
+        else done(false, verdict.status, verdict.message);
+      },
+    });
 
     this.wss.on('connection', (socket) => this.accept(socket));
 

@@ -30,7 +30,11 @@ describe('daemon api', () => {
   const api = async (path: string, init?: RequestInit): Promise<any> => {
     const response = await fetch(`${base}${path}`, {
       ...init,
-      headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+      headers: {
+        'content-type': 'application/json',
+        'x-assemble-token': daemon.token,
+        ...(init?.headers ?? {}),
+      },
     });
     return { status: response.status, body: await response.json() };
   };

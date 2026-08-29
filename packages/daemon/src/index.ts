@@ -5,3 +5,12 @@ export { buildRouter } from './routes.js';
 export { Router, sendError, sendJson, type Handler, type RouteContext } from './http.js';
 export { openTerminal, ptyAvailable, type Terminal, type TerminalOptions } from './terminal.js';
 export { serveStatic } from './static.js';
+export {
+  authorize,
+  createToken,
+  loadOrCreateToken,
+  tokenFrom,
+  TOKEN_HEADER,
+  type Guard,
+  type Verdict,
+} from './auth.js';

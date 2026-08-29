@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './errors.js';
 export { quietSqliteWarning } from './quiet.js';
 export { parseCommand, COMMAND_HELP, type Command } from './command.js';
+export { assertHandle, assertRef, isHandle, toHandle } from './names.js';
 export { newId, nowIso, hasPrefix, type IdPrefix } from './ids.js';
 
 export { AGENT_CATALOG, agentIds, findAgent, requireAgent, resolveAgent, renderPrompt } from './agents/catalog.js';
@@ -65,12 +66,14 @@ export {
   CONFIG_FILE,
   DB_FILE,
   STATE_DIR,
+  TOKEN_FILE,
   Workspace,
   configPath,
   dbPath,
   defaultConfig,
   readConfig,
   stateDir,
+  tokenPath,
   writeConfig,
   type OpenOptions,
 } from './workspace.js';

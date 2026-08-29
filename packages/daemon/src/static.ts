@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 
@@ -20,7 +20,13 @@ const TYPES: Record<string, string> = {
  * else gets `index.html` so client-side routes survive a refresh. Paths are
  * resolved and checked against the root, so `..` cannot escape it.
  */
-export function serveStatic(root: string, pathname: string, response: ServerResponse): boolean {
+export function serveStatic(
+  root: string,
+  pathname: string,
+  response: ServerResponse,
+  /** Injected into index.html, so the console arrives already able to call the API. */
+  token?: string,
+): boolean {
   const rootPath = resolve(root);
   if (!existsSync(rootPath)) return false;
 
@@ -34,9 +40,28 @@ export function serveStatic(root: string, pathname: string, response: ServerResp
     file = index;
   }
 
+  const isIndex = file.endsWith('index.html');
+
+  // The page is how the console gets its token: it is served from here, and a
+  // hostile site cannot read a cross-origin response to steal it.
+  if (isIndex && token) {
+    const html = readFileSync(file, 'utf8').replace(
+      '<head>',
+      `<head><script>window.__ASSEMBLE_TOKEN__=${JSON.stringify(token)}</script>`,
+    );
+
+    response.writeHead(200, {
+      'content-type': 'text/html; charset=utf-8',
+      'content-length': Buffer.byteLength(html),
+      'cache-control': 'no-store',
+    });
+    response.end(html);
+    return true;
+  }
+
   response.writeHead(200, {
     'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
-    'cache-control': file.endsWith('index.html') ? 'no-store' : 'public, max-age=3600',
+    'cache-control': isIndex ? 'no-store' : 'public, max-age=3600',
   });
   createReadStream(file).pipe(response);
   return true;

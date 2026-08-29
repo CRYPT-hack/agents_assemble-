@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { token } from './api';
 import type { ServerMessage, Snapshot, WorkspaceEvent } from './types';
 
 type OutputListener = (handle: string, chunk: string, replace: boolean) => void;
@@ -40,7 +41,9 @@ export function useLive(): Live {
 
     const connect = (): void => {
       const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-      const socket = new WebSocket(`${protocol}://${location.host}/ws`);
+      // A socket handshake is not covered by the same-origin policy, so it
+      // carries the token in the query string — headers are not available here.
+      const socket = new WebSocket(`${protocol}://${location.host}/ws?token=${encodeURIComponent(token())}`);
       socketRef.current = socket;
 
       socket.onopen = () => {

@@ -26,7 +26,7 @@ export async function addCommand(parsed: Parsed): Promise<number> {
     start,
   };
 
-  const client = clientFor(parsed);
+  const client = await clientFor(parsed);
 
   if (await client.alive()) {
     const result = await client.post<{ member: Member; busConfig: string | null; started: boolean }>(
@@ -66,7 +66,7 @@ function report(member: Member, busConfig: string | null, started: boolean): voi
 
 /** `assemble ls` — who is in the crew, and what are they doing. */
 export async function listCommand(parsed: Parsed): Promise<number> {
-  const client = clientFor(parsed);
+  const client = await clientFor(parsed);
 
   let members: MemberRow[];
   if (await client.alive()) {
@@ -113,7 +113,7 @@ export async function stopCommand(parsed: Parsed): Promise<number> {
     return 2;
   }
 
-  const client = clientFor(parsed);
+  const client = await clientFor(parsed);
   if (!(await client.alive())) throw new NeedsDaemon('Stopping an agent');
 
   await client.post(`/api/members/${encodeURIComponent(handle)}/stop`);
@@ -133,7 +133,7 @@ export async function removeCommand(parsed: Parsed): Promise<number> {
   const force = flagBool(parsed.flags, 'force', false);
   const query = `?deleteBranch=${deleteBranch}&force=${force}`;
 
-  const client = clientFor(parsed);
+  const client = await clientFor(parsed);
   if (await client.alive()) {
     await client.del(`/api/members/${encodeURIComponent(handle)}${query}`);
   } else {

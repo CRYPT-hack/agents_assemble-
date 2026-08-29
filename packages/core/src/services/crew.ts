@@ -1,10 +1,12 @@
 import { rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 import { resolveAgent } from '../agents/catalog.js';
 import { writeBusConfig, type BusEndpoint } from '../agents/mcpConfig.js';
 import { createWorktree, removeWorktree } from '../git/worktrees.js';
 import { newId, nowIso } from '../ids.js';
+import { assertHandle, assertRef, toHandle } from '../names.js';
+import { invalid } from '../errors.js';
 import type { EventStore } from '../store/events.js';
 import type { MemberStore } from '../store/members.js';
 import type { AgentSpec, Member, MemberStatus, WorkspaceConfig } from '../types.js';
@@ -80,12 +82,14 @@ export class Crew {
 
   /** First free handle of the form `claude`, `claude-2`, `claude-3`, … */
   mintHandle(agentId: string): string {
-    if (!this.members.handleTaken(agentId)) return agentId;
+    const stem = toHandle(agentId);
+    if (!this.members.handleTaken(stem)) return stem;
+
     for (let n = 2; n < 1000; n += 1) {
-      const candidate = `${agentId}-${n}`;
+      const candidate = `${stem}-${n}`;
       if (!this.members.handleTaken(candidate)) return candidate;
     }
-    return `${agentId}-${Date.now()}`;
+    return `${stem}-${Date.now()}`;
   }
 
   async enlist(options: EnlistOptions): Promise<EnlistResult> {
@@ -93,16 +97,22 @@ export class Crew {
       ...(this.config.agents?.[options.agentId] ?? {}),
       ...(options.spec ?? {}),
     });
-    const handle = options.handle ?? this.mintHandle(spec.id);
-    const branch = `${this.config.branchPrefix}${handle}`;
-    const worktree = join(this.config.worktreeRoot, handle);
+    // A handle is not a label: it becomes a directory under the worktree root
+    // and a branch under the prefix. Check it before either one is created.
+    const handle = options.handle ? assertHandle(options.handle) : this.mintHandle(spec.id);
+    const branch = assertRef(`${this.config.branchPrefix}${handle}`, 'branch');
+    const base = assertRef(options.base ?? this.config.baseBranch, 'base branch');
 
-    await createWorktree({
-      repoRoot: this.config.repoRoot,
-      path: worktree,
-      branch,
-      base: options.base ?? this.config.baseBranch,
-    });
+    const root = resolve(this.config.worktreeRoot);
+    const worktree = resolve(join(root, handle));
+
+    // Belt and braces: even a handle that passed the pattern must land inside.
+    const inside = relative(root, worktree);
+    if (inside === '' || inside.startsWith('..') || isAbsolute(inside)) {
+      throw invalid(`A worktree for ${handle} would land outside the workspace`, { handle });
+    }
+
+    await createWorktree({ repoRoot: this.config.repoRoot, path: worktree, branch, base });
 
     const member: Member = {
       id: newId('mbr'),
@@ -114,15 +124,32 @@ export class Crew {
       branch,
       createdAt: nowIso(),
     };
-    this.members.insert(member);
 
-    const endpoint: BusEndpoint = {
-      command: this.launcher.command,
-      args: this.launcher.args,
-      handle,
-      dbPath: this.launcher.dbPath,
-    };
-    const busConfigPath = spec.speaksMcp ? writeBusConfig(spec, worktree, endpoint) : undefined;
+    let busConfigPath: string | undefined;
+
+    try {
+      // Two enlists racing for the same handle both cut a branch, but only one
+      // can own it: the unique handle throws for the loser. Whatever went wrong
+      // after the checkout, the checkout has to go back.
+      this.members.insert(member);
+
+      const endpoint: BusEndpoint = {
+        command: this.launcher.command,
+        args: this.launcher.args,
+        handle,
+        dbPath: this.launcher.dbPath,
+      };
+      busConfigPath = spec.speaksMcp ? writeBusConfig(spec, worktree, endpoint) : undefined;
+    } catch (cause) {
+      await removeWorktree({
+        repoRoot: this.config.repoRoot,
+        path: worktree,
+        force: true,
+        deleteBranch: branch,
+      }).catch(() => rmSync(worktree, { recursive: true, force: true }));
+
+      throw cause;
+    }
 
     this.events.append('member.created', handle, {
       memberId: member.id,

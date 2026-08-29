@@ -125,10 +125,20 @@ export class Leases {
       throw new AssembleError('conflict', `Lease ${leaseId} belongs to ${lease.holder}`, { leaseId });
     }
 
+    // A lapsed claim is one somebody else may already have taken over. Renewing
+    // it would quietly hand the same paths to two members at once.
+    if (lease.releasedAt || Date.parse(lease.expiresAt) <= Date.now()) {
+      throw new AssembleError('conflict', `Lease ${leaseId} has already lapsed — claim the paths again`, {
+        leaseId,
+        expiresAt: lease.expiresAt,
+        releasedAt: lease.releasedAt,
+      });
+    }
+
     const ttl = ttlSeconds ?? this.defaultTtlSeconds;
     const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
     const renewed = this.store.renew(leaseId, expiresAt);
-    if (!renewed) throw new AssembleError('conflict', `Lease ${leaseId} is no longer active`, { leaseId });
+    if (!renewed) throw new AssembleError('conflict', `Lease ${leaseId} has already lapsed`, { leaseId });
 
     return { ...lease, expiresAt };
   }

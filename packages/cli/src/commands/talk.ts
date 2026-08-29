@@ -34,7 +34,7 @@ export async function sendCommand(parsed: Parsed): Promise<number> {
     ...(flagString(parsed.flags, 'priority') ? { priority: flagString(parsed.flags, 'priority') } : {}),
   };
 
-  const client = clientFor(parsed);
+  const client = await clientFor(parsed);
   if (await client.alive()) {
     const { message } = await client.post<{ message: Message }>('/api/messages', payload);
     print(`${green('sent')} ${dim(message.id)} to ${paintAddress(message)}`);

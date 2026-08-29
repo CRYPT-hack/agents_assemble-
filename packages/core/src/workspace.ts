@@ -18,10 +18,12 @@ import type { WorkspaceConfig } from './types.js';
 export const STATE_DIR = '.assemble';
 export const CONFIG_FILE = 'workspace.json';
 export const DB_FILE = 'workspace.db';
+export const TOKEN_FILE = 'token';
 
 export const stateDir = (repoRoot: string): string => join(repoRoot, STATE_DIR);
 export const configPath = (repoRoot: string): string => join(stateDir(repoRoot), CONFIG_FILE);
 export const dbPath = (repoRoot: string): string => join(stateDir(repoRoot), DB_FILE);
+export const tokenPath = (repoRoot: string): string => join(stateDir(repoRoot), TOKEN_FILE);
 
 export function defaultConfig(repoRoot: string, baseBranch: string): WorkspaceConfig {
   return {

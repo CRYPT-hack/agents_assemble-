@@ -2,8 +2,11 @@ import { createServer, type Server } from 'node:http';
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 
-import { Workspace, dbPath } from '@assemble/core';
+import { Workspace, dbPath, tokenPath } from '@assemble/core';
 
+import { authorize, loadOrCreateToken, type Guard } from './auth.js';
+
+import { sendJson } from './http.js';
 import { buildRouter } from './routes.js';
 import { Runtime } from './runtime.js';
 import { SocketHub } from './sockets.js';
@@ -27,6 +30,8 @@ export interface Daemon {
   runtime: Runtime;
   hub: SocketHub;
   server: Server;
+  /** Every API call and socket must present this. */
+  token: string;
   /** Where the console lives, e.g. `http://127.0.0.1:4319`. */
   url: string;
   close(): Promise<void>;
@@ -68,17 +73,33 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
   const router = buildRouter(workspace, runtime);
   const uiRoot = options.uiRoot ? resolve(options.uiRoot) : findUiRoot();
 
+  // The guard's port is filled in once the socket is bound, because port 0 —
+  // which the tests use — is only resolved by listening.
+  const guard: Guard = { token: loadOrCreateToken(tokenPath(workspace.config.repoRoot)), port: 0 };
+
   const server = createServer((request, response) => {
     void (async () => {
       const url = new URL(request.url ?? '/', 'http://localhost');
+      const isApi = url.pathname === '/api' || url.pathname.startsWith('/api/');
+
+      // The console itself is not behind the token — being served is how it
+      // gets one — but everything that can act on the workspace is.
+      if (isApi) {
+        const verdict = authorize(request, url, guard);
+        if (!verdict.ok) {
+          sendJson(response, verdict.status, {
+            error: { code: 'unauthorized', message: verdict.message, details: {} },
+          });
+          return;
+        }
+      }
 
       if (await router.handle(request, response)) return;
 
       // The console is a single-page app, so unknown paths fall back to its
       // index.html — but never under /api, where an unmatched route is a 404
       // and callers deserve JSON rather than a page.
-      const isApi = url.pathname === '/api' || url.pathname.startsWith('/api/');
-      if (!isApi && uiRoot && request.method === 'GET' && serveStatic(uiRoot, url.pathname, response)) {
+      if (!isApi && uiRoot && request.method === 'GET' && serveStatic(uiRoot, url.pathname, response, guard.token)) {
         return;
       }
 
@@ -87,7 +108,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
     })();
   });
 
-  const hub = new SocketHub(server, workspace, runtime);
+  const hub = new SocketHub(server, workspace, runtime, guard);
   hub.start();
 
   const host = options.host ?? '127.0.0.1';
@@ -103,12 +124,14 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
 
   const address = server.address();
   const actualPort = typeof address === 'object' && address ? address.port : port;
+  guard.port = actualPort;
 
   return {
     workspace,
     runtime,
     hub,
     server,
+    token: guard.token,
     url: `http://${host}:${actualPort}`,
     close: async () => {
       runtime.stopAll();

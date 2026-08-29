@@ -1,12 +1,35 @@
-import { Workspace, attachWorkspace, dbPath, repoRoot, type AttachedWorkspace } from '@assemble/core';
+import { readFileSync } from 'node:fs';
+
+import {
+  Workspace,
+  attachWorkspace,
+  dbPath,
+  repoRoot,
+  tokenPath,
+  type AttachedWorkspace,
+} from '@assemble/core';
 
 import { flagNumber, flagString, type Parsed } from './args.js';
 import { DaemonClient, DEFAULT_PORT } from './client.js';
 
-export function clientFor(parsed: Parsed): DaemonClient {
+/**
+ * A client for the daemon, carrying this workspace's token.
+ *
+ * The token lives in the repository's own `.assemble/` directory, so anything
+ * that can already read the workspace can talk to it — and nothing else can.
+ */
+export async function clientFor(parsed: Parsed): Promise<DaemonClient> {
   const port = flagNumber(parsed.flags, 'port', 'p') ?? DEFAULT_PORT;
   const host = flagString(parsed.flags, 'host') ?? '127.0.0.1';
-  return DaemonClient.at(port, host);
+
+  let token = '';
+  try {
+    token = readFileSync(tokenPath(await repoRoot(process.cwd())), 'utf8').trim();
+  } catch {
+    // No workspace here yet, or no daemon has ever run: the call will say so.
+  }
+
+  return DaemonClient.at(port, host, token);
 }
 
 /**

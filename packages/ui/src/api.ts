@@ -1,9 +1,21 @@
 import type { Agent, Lease, Member, Message, Task } from './types';
 
+/**
+ * The workspace token, baked into this page when the daemon served it.
+ *
+ * Anything that can act on the workspace needs it, which is what stops another
+ * site in the browser from driving your agents.
+ */
+const TOKEN: string = (window as { __ASSEMBLE_TOKEN__?: string }).__ASSEMBLE_TOKEN__ ?? '';
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
-    headers: { 'content-type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'content-type': 'application/json',
+      'x-assemble-token': TOKEN,
+      ...(init?.headers ?? {}),
+    },
   });
 
   const text = await response.text();
@@ -15,6 +27,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   return payload as T;
 }
+
+export const token = (): string => TOKEN;
 
 export const api = {
   members: () => request<{ members: Member[] }>('/api/members'),
