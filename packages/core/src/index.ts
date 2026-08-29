@@ -44,6 +44,11 @@ export { MemberStore } from './store/members.js';
 export { MessageStore, type InboxItem } from './store/messages.js';
 export { TaskStore, type TaskFilter } from './store/tasks.js';
 
+export {
+  attachWorkspace,
+  type AttachOptions,
+  type AttachedWorkspace,
+} from './services/attach.js';
 export { Board, type CreateTaskOptions } from './services/board.js';
 export { Bus, WORKSPACE_SENDER, type SendOptions } from './services/bus.js';
 export { Crew, type BusLauncher, type EnlistOptions, type EnlistResult } from './services/crew.js';
