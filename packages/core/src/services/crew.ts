@@ -39,6 +39,15 @@ export interface BusLauncher {
   dbPath: string;
 }
 
+/** Statuses that imply a live process behind the member. */
+const LIVE_STATUSES: ReadonlySet<MemberStatus> = new Set<MemberStatus>([
+  'starting',
+  'working',
+  'waiting',
+  'blocked',
+  'review',
+]);
+
 /**
  * Enlisting, retiring, and tracking members.
  *
@@ -132,6 +141,56 @@ export class Crew {
     );
 
     return { member, spec, ...(busConfigPath ? { busConfigPath } : {}) };
+  }
+
+  /**
+   * Bring stored state back in line with reality after a restart.
+   *
+   * A workspace that was killed leaves members marked `working` whose processes
+   * died with it, holding claims nobody will ever release and tasks nobody is
+   * doing. Anything not actually running is stood down, its claims are freed and
+   * its work returns to the backlog — reported once rather than per member, so
+   * a restart does not flood the feed.
+   */
+  reconcile(runningHandles: string[] = []): Member[] {
+    const running = new Set(runningHandles);
+    const stale = this.members
+      .list()
+      .filter((member) => LIVE_STATUSES.has(member.status) && !running.has(member.handle));
+
+    if (stale.length === 0) return [];
+
+    let releasedLeases = 0;
+    let returnedTasks = 0;
+
+    for (const member of stale) {
+      this.members.update(member.id, {
+        status: 'stopped',
+        note: 'workspace restarted without it',
+        endedAt: nowIso(),
+      });
+      this.events.append('member.status', member.handle, {
+        status: 'stopped',
+        note: 'workspace restarted without it',
+      });
+
+      releasedLeases += this.leases.releaseAll(member.handle);
+      returnedTasks += this.board.releaseFor(member.handle);
+    }
+
+    this.bus.announce(
+      'workspace restarted',
+      [
+        `${stale.map((member) => member.handle).join(', ')} ${stale.length === 1 ? 'was' : 'were'} not running any more.`,
+        releasedLeases > 0 ? `Freed ${releasedLeases} file claim(s).` : '',
+        returnedTasks > 0 ? `Returned ${returnedTasks} task(s) to the backlog.` : '',
+        'Their branches are untouched; start them again when you want them back.',
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    );
+
+    return stale;
   }
 
   setStatus(handle: string, status: MemberStatus, note?: string): Member {

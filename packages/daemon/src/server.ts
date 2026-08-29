@@ -62,6 +62,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<Daemon> 
     pathPrefix: [join(workspace.config.repoRoot, 'node_modules', '.bin')],
   });
 
+  // Nothing survived the last shutdown; say so before serving anyone.
+  workspace.crew.reconcile(runtime.handles());
+
   const router = buildRouter(workspace, runtime);
   const uiRoot = options.uiRoot ? resolve(options.uiRoot) : findUiRoot();
 
