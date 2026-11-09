@@ -1,5 +1,12 @@
 export { startDaemon, type Daemon, type DaemonOptions } from './server.js';
-export { Runtime, readyPattern, stripAnsi, type RuntimeOptions, type StartOptions } from './runtime.js';
+export {
+  Runtime,
+  readyInput,
+  readyPattern,
+  stripAnsi,
+  type RuntimeOptions,
+  type StartOptions,
+} from './runtime.js';
 export { SocketHub } from './sockets.js';
 export { buildRouter } from './routes.js';
 export { Router, sendError, sendJson, type Handler, type RouteContext } from './http.js';

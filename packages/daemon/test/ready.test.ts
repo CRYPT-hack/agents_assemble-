@@ -1,12 +1,20 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { readyPattern, stripAnsi } from '../dist/index.js';
+import { readyInput, readyPattern, stripAnsi } from '../dist/index.js';
 
 describe('first-run prompt rules', () => {
   it('is off when no rule is configured', () => {
     assert.equal(readyPattern(undefined), null);
     assert.equal(readyPattern(false), null);
+  });
+
+  it('treats a single answer as one piece', () => {
+    assert.deepEqual(readyInput({ pattern: 'x', input: '\r' }), ['\r']);
+  });
+
+  it('keeps a multi-part answer in order', () => {
+    assert.deepEqual(readyInput({ pattern: 'x', input: ['\u001b[B', '\r'] }), ['\u001b[B', '\r']);
   });
 
   it('matches the prompt case-insensitively', () => {

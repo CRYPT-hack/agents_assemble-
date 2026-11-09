@@ -51,6 +51,14 @@ export function stripAnsi(text: string): string {
     .replace(/\s+/g, ' ');
 }
 
+/** How long to leave between pieces of a multi-part answer. */
+const READY_GAP_MS = 300;
+
+/** Normalise a rule's answer into the pieces to type, in order. */
+export function readyInput(rule: ReadyRule): string[] {
+  return Array.isArray(rule.input) ? rule.input : [rule.input];
+}
+
 export interface RuntimeOptions {
   /** Command members run to reach the bus, written into their MCP config. */
   mcpCommand: string;
@@ -166,7 +174,20 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
       tail = stripAnsi(`${tail}${chunk}`).slice(-4000);
       if (ready.test(tail)) {
         answered = true;
-        terminal.write(rule.input);
+        // A menu that wants "down, then Enter" ignores both when they arrive
+        // together, so pieces are spaced out. The member may also exit between
+        // them, which is not an error worth raising.
+        readyInput(rule).forEach((piece, index) => {
+          const send = (): void => {
+            try {
+              terminal.write(piece);
+            } catch {
+              // The member went away mid-answer.
+            }
+          };
+          if (index === 0) send();
+          else setTimeout(send, index * READY_GAP_MS);
+        });
       }
     });
 

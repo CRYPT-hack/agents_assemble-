@@ -59,8 +59,12 @@ export interface AgentSpec {
 export interface ReadyRule {
   /** Regular expression source, matched case-insensitively against output. */
   pattern: string;
-  /** Text written to the pty the first time the pattern appears. */
-  input: string;
+  /**
+   * Text written to the pty the first time the pattern appears. An array is
+   * sent one piece at a time with a short gap: a menu that needs "down, then
+   * Enter" ignores both if they arrive in the same write.
+   */
+  input: string | string[];
 }
 
 /** Recipe for wiring the Assemble MCP server into an agent's own config file. */

@@ -104,7 +104,7 @@ A `ready` rule answers one such question, once:
     "claude": {
       "ready": {
         "pattern": "safety check[\\s\\S]*trust",
-        "input": "\u001b[B\r"
+        "input": ["\u001b[B", "\r"]
       }
     }
   }
@@ -116,10 +116,12 @@ member's output, over a sliding window so a prompt split across reads still
 matches. `input` is written to the pty the first time it matches, and never
 again. `"ready": false` turns a rule off.
 
-The input above is **down-arrow then Enter**, not Enter alone. Claude's prompt
-opens with `No, exit` selected, so a bare carriage return quits the agent — a
-failure that looks like the agent crashing rather than declining. Check which
-option a prompt defaults to before writing a rule for it.
+The input above is **down-arrow, then Enter**, and it is written as two pieces
+rather than one string. Claude's prompt opens with `No, exit` selected, so a
+bare carriage return quits the agent — a failure that looks like the agent
+crashing rather than declining. Sending both keys in a single write also fails:
+the menu ignores them. Pieces are sent 300 ms apart, so write an answer as an
+array when it takes more than one keystroke.
 
 Patterns are matched against normalised text, not the raw stream. A full-screen
 agent positions the cursor between words instead of emitting spaces, so the
