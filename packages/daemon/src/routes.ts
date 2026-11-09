@@ -29,6 +29,21 @@ function required(body: Record<string, unknown>, key: string): string {
 }
 
 /**
+ * A string field where whitespace is meaningful.
+ *
+ * Terminal input is routinely just a newline — pressing Enter, answering a
+ * prompt, sending Ctrl-C. Trimming before the emptiness check would reject
+ * every one of those, so this only insists the value is a string.
+ */
+export function requiredRaw(body: Record<string, unknown>, key: string): string {
+  const value = body[key];
+  if (typeof value !== 'string') {
+    throw new AssembleError('invalid', `${key} is required`);
+  }
+  return value;
+}
+
+/**
  * The daemon's HTTP surface.
  *
  * Everything the console does — and everything a script could want to automate —
@@ -105,7 +120,7 @@ export function buildRouter(workspace: Workspace, runtime: Runtime): Router {
   });
 
   router.post('/api/members/:handle/input', (_request, response, { params, body }) => {
-    runtime.write(params['handle'] as string, required(body, 'data'));
+    runtime.write(params['handle'] as string, requiredRaw(body, 'data'));
     sendJson(response, 202, { ok: true });
   });
 
