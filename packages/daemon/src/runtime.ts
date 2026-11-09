@@ -29,17 +29,26 @@ export function readyPattern(rule: ReadyRule | false | undefined): RegExp | null
 }
 
 /**
- * Remove terminal escape sequences.
+ * Turn a terminal stream into the text a human would read.
  *
  * A full-screen agent does not emit "do you trust this folder" as one run of
- * characters: it positions the cursor between words, so the text arrives as
- * `Quick <move> safety <move> check`. Matching the raw stream would never find
- * a phrase, so rules are matched against the text a human would read.
+ * characters. It positions the cursor between words — `Quick <cursor-forward>
+ * safety <cursor-forward> check` — so the escape sequences are the spacing.
+ * Dropping them outright welds the words together and no phrase ever matches.
+ *
+ * So a cursor-forward becomes the space it stood for, everything else goes,
+ * and runs of whitespace collapse to one. Rules are written against this
+ * normalised text, which is why they can use plain spaces.
  */
-const ANSI = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-Z\\-_]/g;
+const CURSOR_FORWARD = /\x1b\[(\d*)C/g;
+const ANSI =
+  /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?<=>]*[ -/]*[@-~]|\x1b[@-Z\\-_]/g;
 
 export function stripAnsi(text: string): string {
-  return text.replace(ANSI, '');
+  return text
+    .replace(CURSOR_FORWARD, (_match, count: string) => ' '.repeat(Math.max(1, Number(count) || 1)))
+    .replace(ANSI, '')
+    .replace(/\s+/g, ' ');
 }
 
 export interface RuntimeOptions {
@@ -152,7 +161,7 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
       if (!ready || !rule || answered) return;
 
       // A prompt can be split across reads, and is usually split by cursor
-      // moves, so match against a stripped sliding window rather than the
+      // moves, so match against a normalised sliding window rather than the
       // chunk that happened to arrive last.
       tail = stripAnsi(`${tail}${chunk}`).slice(-4000);
       if (ready.test(tail)) {

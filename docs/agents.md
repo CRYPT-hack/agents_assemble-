@@ -104,7 +104,7 @@ A `ready` rule answers one such question, once:
     "claude": {
       "ready": {
         "pattern": "safety check[\\s\\S]*trust",
-        "input": "\r"
+        "input": "\u001b[B\r"
       }
     }
   }
@@ -115,6 +115,17 @@ A `ready` rule answers one such question, once:
 member's output, over a sliding window so a prompt split across reads still
 matches. `input` is written to the pty the first time it matches, and never
 again. `"ready": false` turns a rule off.
+
+The input above is **down-arrow then Enter**, not Enter alone. Claude's prompt
+opens with `No, exit` selected, so a bare carriage return quits the agent — a
+failure that looks like the agent crashing rather than declining. Check which
+option a prompt defaults to before writing a rule for it.
+
+Patterns are matched against normalised text, not the raw stream. A full-screen
+agent positions the cursor between words instead of emitting spaces, so the
+escape sequences are the spacing; they are converted back to spaces and runs of
+whitespace collapsed before matching. That is why a pattern can be written with
+plain spaces even though the terminal never sends them.
 
 This is **off by default and deliberately so**. The prompt exists to stop an
 agent running in a directory you have not vetted. Turn it on for agents working

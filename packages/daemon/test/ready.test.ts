@@ -30,14 +30,20 @@ describe('first-run prompt rules', () => {
 });
 
 describe('escape stripping', () => {
-  it('removes cursor moves so a phrase becomes contiguous', () => {
+  it('turns a cursor forward into the space it stood for', () => {
     const raw = 'Quick \x1b[1Csafety \x1b[1Ccheck: Is this a project you trust?';
 
     assert.equal(stripAnsi(raw), 'Quick safety check: Is this a project you trust?');
   });
 
-  it('removes colour and screen control sequences', () => {
-    const raw = '\x1b[38;2;255;193;7m\x1b[2J\x1b[Hhello\x1b[m';
+  it('keeps words apart when the escape was the only spacing', () => {
+    const raw = 'Accessing \x1b[1Cworkspace: \x1b[1Cclaude-4';
+
+    assert.equal(stripAnsi(raw), 'Accessing workspace: claude-4');
+  });
+
+  it('removes colour, screen control and keyboard-protocol sequences', () => {
+    const raw = '\x1b[38;2;255;193;7m\x1b[2J\x1b[H\x1b[<u\x1b[>5uhello\x1b[m';
 
     assert.equal(stripAnsi(raw), 'hello');
   });
@@ -46,6 +52,10 @@ describe('escape stripping', () => {
     const raw = 'see \x1b]8;;https://example.com\x1b\\the docs\x1b]8;;\x1b\\ now';
 
     assert.equal(stripAnsi(raw), 'see the docs now');
+  });
+
+  it('collapses runs of whitespace to a single space', () => {
+    assert.equal(stripAnsi('a\n\n  b\t\tc'), 'a b c');
   });
 
   it('leaves ordinary text alone', () => {
@@ -59,6 +69,6 @@ describe('escape stripping', () => {
 
     assert.ok(rule);
     assert.equal(rule.test(stripAnsi(raw)), true);
-    assert.equal(rule.test(raw), false, 'the raw stream is why the rule needed stripping');
+    assert.equal(rule.test(raw), false, 'the raw stream is why the rule needed normalising');
   });
 });
