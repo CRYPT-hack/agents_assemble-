@@ -40,6 +40,27 @@ export interface AgentSpec {
   speaksMcp: boolean;
   /** Where to write MCP server config so the agent picks the bus up on launch. */
   mcpConfig?: McpConfigTarget;
+  /**
+   * A first-run question the agent asks in a fresh worktree — "do you trust
+   * this folder?" — and the answer to give it. Off unless a workspace opts in,
+   * because answering a safety prompt on someone's behalf is their decision.
+   * `false` disables a rule inherited from the catalog.
+   */
+  ready?: ReadyRule | false;
+}
+
+/**
+ * One question, answered once.
+ *
+ * Agents that gate a new directory on a confirmation will otherwise sit at the
+ * prompt forever, which looks like a hang. A rule names what to look for in the
+ * terminal and what to send back.
+ */
+export interface ReadyRule {
+  /** Regular expression source, matched case-insensitively against output. */
+  pattern: string;
+  /** Text written to the pty the first time the pattern appears. */
+  input: string;
 }
 
 /** Recipe for wiring the Assemble MCP server into an agent's own config file. */

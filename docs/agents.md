@@ -89,6 +89,39 @@ Give it an id and, at minimum, a command:
 
 `mcpConfig.format` is one of `mcp-json` (a `mcpServers` object), `gemini-settings` (the same key inside a larger settings file), `codex-toml`, `opencode-json` (servers under `mcp`, command and args in one array), `crush-json` (servers under `mcp`, command and args apart) or `goose-yaml` (an `extensions` map in YAML).
 
+## First-run prompts
+
+Some agents stop the first time they open a directory and ask whether it is
+trusted. In a fresh worktree that happens on every launch, and because nothing
+is typed, the member looks like it hung. Claude Code is the common case: it
+shows a "Quick safety check" and waits.
+
+A `ready` rule answers one such question, once:
+
+```json
+{
+  "agents": {
+    "claude": {
+      "ready": {
+        "pattern": "safety check[\\s\\S]*trust",
+        "input": "\r"
+      }
+    }
+  }
+}
+```
+
+`pattern` is a regular expression matched case-insensitively against the
+member's output, over a sliding window so a prompt split across reads still
+matches. `input` is written to the pty the first time it matches, and never
+again. `"ready": false` turns a rule off.
+
+This is **off by default and deliberately so**. The prompt exists to stop an
+agent running in a directory you have not vetted. Turn it on for agents working
+worktrees of your own repository, not for a clone you have not read — and note
+that `assemble add` cuts worktrees from your base branch, so the code is yours,
+but the directory is new.
+
 ## Telling agents to actually use the tools
 
 Having the tools is not the same as using them. The MCP server ships instructions asking the agent to check in, claim files before editing, and read its inbox between steps — but a mission that says so is worth more:

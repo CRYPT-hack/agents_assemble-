@@ -5,6 +5,7 @@ import {
   renderPrompt,
   resolveAgent,
   type Member,
+  type ReadyRule,
   type Workspace,
   type WorkspaceEvent,
 } from '@assemble/core';
@@ -13,6 +14,19 @@ import { openTerminal, type Terminal } from './terminal.js';
 
 /** How much of each member's output the daemon keeps for late joiners. */
 const SCROLLBACK_BYTES = 256 * 1024;
+
+/**
+ * Compile a first-run rule. A bad pattern disables the rule rather than
+ * failing the launch: an unanswerable prompt is better than no agent at all.
+ */
+export function readyPattern(rule: ReadyRule | false | undefined): RegExp | null {
+  if (!rule) return null;
+  try {
+    return new RegExp(rule.pattern, 'i');
+  } catch {
+    return null;
+  }
+}
 
 export interface RuntimeOptions {
   /** Command members run to reach the bus, written into their MCP config. */
@@ -107,9 +121,24 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
     const state: Running = { handle, terminal, scrollback: [], scrollbackBytes: 0, startedAt: Date.now() };
     this.running.set(handle, state);
 
+    const rule = spec.ready === false ? undefined : spec.ready;
+    const ready = readyPattern(rule);
+    let answered = false;
+    let tail = '';
+
     terminal.onData((chunk) => {
       this.remember(state, chunk);
       this.emit('output', { handle, chunk });
+
+      if (!ready || !rule || answered) return;
+
+      // A prompt can be split across reads, so match against a sliding window
+      // rather than the chunk that happened to arrive last.
+      tail = `${tail}${chunk}`.slice(-4000);
+      if (ready.test(tail)) {
+        answered = true;
+        terminal.write(rule.input);
+      }
     });
 
     terminal.onExit((code, signal) => {
