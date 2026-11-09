@@ -1,4 +1,8 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
+
+const WINDOWS = process.platform === 'win32';
 
 export interface TerminalOptions {
   command: string;
@@ -128,12 +132,44 @@ class PipeTerminal implements Terminal {
   }
 }
 
+/**
+ * Resolve a bare command against PATH.
+ *
+ * node-pty hands the name straight to conpty, which does not search PATH the
+ * way a shell does: spawning `claude` throws "File not found" even when
+ * `claude` is on PATH, because only system directories are searched. Resolving
+ * here means a catalog entry can name the executable the way a user types it.
+ */
+export function resolveCommand(command: string, env: NodeJS.ProcessEnv = process.env): string {
+  if (command.length === 0) return command;
+  if (isAbsolute(command) || command.includes('/') || command.includes('\\')) return command;
+
+  const path = env['PATH'] ?? env['Path'] ?? '';
+  const directories = path.split(WINDOWS ? ';' : ':').filter(Boolean);
+  const extensions = WINDOWS
+    ? (env['PATHEXT'] ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+    : [];
+
+  for (const directory of directories) {
+    for (const extension of extensions) {
+      const candidate = join(directory, `${command}${extension}`);
+      if (existsSync(candidate)) return candidate;
+    }
+    const direct = join(directory, command);
+    if (existsSync(direct)) return direct;
+  }
+
+  // Not found: hand back the original so the spawn error names what was asked for.
+  return command;
+}
+
 /** Start a process for a member, on a pty when one is available. */
 export async function openTerminal(options: TerminalOptions): Promise<Terminal> {
   const pty = await loadPty();
+  const command = resolveCommand(options.command, options.env);
 
   if (pty) {
-    const session = pty.spawn(options.command, options.args, {
+    const session = pty.spawn(command, options.args, {
       name: 'xterm-256color',
       cols: options.cols ?? 120,
       rows: options.rows ?? 32,
@@ -143,7 +179,7 @@ export async function openTerminal(options: TerminalOptions): Promise<Terminal> 
     return new PtyTerminal(session);
   }
 
-  const child = spawn(options.command, options.args, {
+  const child = spawn(command, options.args, {
     cwd: options.cwd,
     env: options.env,
     stdio: ['pipe', 'pipe', 'pipe'],

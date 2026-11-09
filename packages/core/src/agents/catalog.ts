@@ -62,7 +62,31 @@ export const AGENT_CATALOG: readonly AgentSpec[] = [
     promptMode: 'argv',
     promptTemplate: '{{mission}}',
     speaksMcp: true,
-    mcpConfig: { file: 'opencode.json', format: 'mcp-json' },
+    mcpConfig: { file: 'opencode.json', format: 'opencode-json' },
+  },
+  // Goose and Crush are provider-agnostic: they run on whatever backend their
+  // own config names, so a free or local model is a config change rather than a
+  // code change. Their project-local config paths move between releases — if a
+  // member starts without the bus, check the path first.
+  {
+    id: 'goose',
+    name: 'Goose',
+    command: 'goose',
+    args: [],
+    promptMode: 'stdin',
+    promptTemplate: '{{mission}}',
+    speaksMcp: true,
+    mcpConfig: { file: '.goose/config.yaml', format: 'goose-yaml' },
+  },
+  {
+    id: 'crush',
+    name: 'Crush',
+    command: 'crush',
+    args: [],
+    promptMode: 'stdin',
+    promptTemplate: '{{mission}}',
+    speaksMcp: true,
+    mcpConfig: { file: 'crush.json', format: 'crush-json' },
   },
   {
     id: 'qwen',
