@@ -47,7 +47,7 @@ export interface McpConfigTarget {
   /** Path relative to the member worktree, e.g. `.mcp.json`. */
   file: string;
   /** Shape of that file, so the writer knows where the server list lives. */
-  format: 'mcp-json' | 'codex-toml' | 'gemini-settings';
+  format: 'mcp-json' | 'codex-toml' | 'gemini-settings' | 'opencode-json' | 'crush-json' | 'goose-yaml';
 }
 
 // ---------------------------------------------------------------------------

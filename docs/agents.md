@@ -18,6 +18,8 @@ Assemble never handles credentials. Install and authenticate each agent the way 
 | `gemini` | Gemini CLI | `gemini` | yes | `.gemini/settings.json` |
 | `cursor` | Cursor Agent | `cursor-agent` | yes | `.cursor/mcp.json` |
 | `opencode` | OpenCode | `opencode` | yes | `opencode.json` |
+| `goose` | Goose | `goose` | yes | `.goose/config.yaml` |
+| `crush` | Crush | `crush` | yes | `crush.json` |
 | `qwen` | Qwen Code | `qwen` | yes | `.qwen/settings.json` |
 | `copilot` | GitHub Copilot CLI | `copilot` | yes | `.github/copilot/mcp.json` |
 | `aider` | Aider | `aider` | no | — |
@@ -85,7 +87,7 @@ Give it an id and, at minimum, a command:
 - `stdin` — typed into the terminal once the agent has drawn its prompt.
 - `none` — not delivered at all; you or the bus tell it what to do.
 
-`mcpConfig.format` is one of `mcp-json` (a `mcpServers` object), `gemini-settings` (the same key inside a larger settings file) or `codex-toml`.
+`mcpConfig.format` is one of `mcp-json` (a `mcpServers` object), `gemini-settings` (the same key inside a larger settings file), `codex-toml`, `opencode-json` (servers under `mcp`, command and args in one array), `crush-json` (servers under `mcp`, command and args apart) or `goose-yaml` (an `extensions` map in YAML).
 
 ## Telling agents to actually use the tools
 
