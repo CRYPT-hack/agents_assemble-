@@ -28,6 +28,20 @@ export function readyPattern(rule: ReadyRule | false | undefined): RegExp | null
   }
 }
 
+/**
+ * Remove terminal escape sequences.
+ *
+ * A full-screen agent does not emit "do you trust this folder" as one run of
+ * characters: it positions the cursor between words, so the text arrives as
+ * `Quick <move> safety <move> check`. Matching the raw stream would never find
+ * a phrase, so rules are matched against the text a human would read.
+ */
+const ANSI = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b[@-Z\\-_]/g;
+
+export function stripAnsi(text: string): string {
+  return text.replace(ANSI, '');
+}
+
 export interface RuntimeOptions {
   /** Command members run to reach the bus, written into their MCP config. */
   mcpCommand: string;
@@ -70,6 +84,8 @@ export interface RuntimeEvents {
  */
 export class Runtime extends EventEmitter<RuntimeEvents> {
   private readonly running = new Map<string, Running>();
+  /** Last output of members that have exited, so a failure can still be read. */
+  private readonly lastOutput = new Map<string, string>();
 
   constructor(
     private readonly workspace: Workspace,
@@ -87,7 +103,9 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
   }
 
   scrollback(handle: string): string {
-    return this.running.get(handle)?.scrollback.join('') ?? '';
+    const live = this.running.get(handle);
+    if (live) return live.scrollback.join('');
+    return this.lastOutput.get(handle) ?? '';
   }
 
   async start(handle: string, options: StartOptions = {}): Promise<Member> {
@@ -120,6 +138,7 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
 
     const state: Running = { handle, terminal, scrollback: [], scrollbackBytes: 0, startedAt: Date.now() };
     this.running.set(handle, state);
+    this.lastOutput.delete(handle);
 
     const rule = spec.ready === false ? undefined : spec.ready;
     const ready = readyPattern(rule);
@@ -132,9 +151,10 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
 
       if (!ready || !rule || answered) return;
 
-      // A prompt can be split across reads, so match against a sliding window
-      // rather than the chunk that happened to arrive last.
-      tail = `${tail}${chunk}`.slice(-4000);
+      // A prompt can be split across reads, and is usually split by cursor
+      // moves, so match against a stripped sliding window rather than the
+      // chunk that happened to arrive last.
+      tail = stripAnsi(`${tail}${chunk}`).slice(-4000);
       if (ready.test(tail)) {
         answered = true;
         terminal.write(rule.input);
@@ -142,6 +162,7 @@ export class Runtime extends EventEmitter<RuntimeEvents> {
     });
 
     terminal.onExit((code, signal) => {
+      this.lastOutput.set(handle, state.scrollback.join(''));
       this.running.delete(handle);
       this.workspace.crew.setPid(handle, undefined);
       this.workspace.crew.setStatus(handle, code === 0 ? 'done' : 'failed', `exited with code ${code}`);
